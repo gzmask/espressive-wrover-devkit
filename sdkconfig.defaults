@@ -1,0 +1,26 @@
+# Verified target and detected 4 MB Flash; no hardware writes are made by building.
+CONFIG_IDF_TARGET="esp32"
+CONFIG_ESP32_REV_MIN_1=y
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESPTOOLPY_FLASHMODE_DIO=y
+CONFIG_ESPTOOLPY_FLASHFREQ_40M=y
+CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+CONFIG_FREERTOS_HZ=100
+CONFIG_FREERTOS_CHECK_STACKOVERFLOW_CANARY=y
+CONFIG_ESP_TASK_WDT_EN=y
+CONFIG_ESP_TASK_WDT_INIT=y
+CONFIG_ESP_TASK_WDT_PANIC=y
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=5
+CONFIG_ESP_INT_WDT=y
+
+# No PSRAM assumptions. Enable only after module/hardware confirmation.
+# CONFIG_SPIRAM is not set
+# Wi-Fi runtime is opt-in. No Bluetooth or network service is started by default.
+# CONFIG_WIFI_SERVICE_ENABLE is not set
+# CONFIG_BOARD_DISPLAY_ENABLE is not set
+
+# Build with the stock single-app layout; compatibility with existing Flash is
+# APP-ONLY verified against the retained factory slot. This is NOT permission
+# to write the generated bootloader or partition-table bins.
+CONFIG_PARTITION_TABLE_SINGLE_APP=y

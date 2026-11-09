@@ -1,0 +1,32 @@
+menu "Radio node Wi-Fi"
+    config WIFI_SERVICE_ENABLE
+        bool "Enable Wi-Fi diagnostic"
+        default n
+        help
+            Passive scan unless station mode is explicitly enabled below.
+            Neither mode starts SoftAP or HTTP.
+            Requires ESP_WIFI_NVS_ENABLED=n,
+            ESP_PHY_CALIBRATION_AND_DATA_STORAGE=n and
+            ESP_PHY_INIT_DATA_IN_PARTITION=n. Compile guards enforce these.
+            PHY performs full calibration on each boot instead of storing NVS.
+    config WIFI_SERVICE_CONNECT_ENABLE
+        bool "Enable station/DHCP instead of passive scanning"
+        depends on WIFI_SERVICE_ENABLE
+        default n
+        help
+            Embed a private local SSID/password file at build time using
+            WIFI_CREDENTIALS_FILE; connect automatically on each boot.
+            Credentials remain in application flash, but are not saved to NVS.
+    config WIFI_SERVICE_US_CONFIRMED
+        bool "Actual deployment location is confirmed United States"
+        depends on WIFI_SERVICE_CONNECT_ENABLE
+        default n
+        help
+            This station implementation uses US, channels 1-11, manual policy.
+            Compile guard rejects station mode without explicit confirmation.
+    config WIFI_SERVICE_SCAN_INTERVAL_SECONDS
+        int "Delay between completed passive scans (seconds)"
+        depends on WIFI_SERVICE_ENABLE
+        range 15 600
+        default 60
+endmenu

@@ -1,0 +1,40 @@
+# Local captures/backups may contain credentials or device identifiers.
+.local/
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+.DS_Store
+
+# ESP-IDF generated configuration may contain Wi-Fi credentials.
+build/
+sdkconfig
+sdkconfig.old
+sdkconfig.local*
+managed_components/
+
+# Machine-local handoff; public operating rules are in docs/SAFETY.md.
+/AGENTS.md
+
+# Firmware, object files, keys and logs must never enter public history.
+*.bin
+*.elf
+*.o
+*.obj
+*.a
+*.map
+*.asm
+*.pem
+*.key
+*.der
+*.p12
+*.pfx
+*.log
+
+# Manufacturer originals remain local until redistribution rights are verified.
+/docs/references/espressif/user_guide.html
+/docs/references/espressif/layout-front.png
+/docs/references/espressif/layout-back.png
+/docs/references/espressif/ESP-WROVER-KIT_V4.1.dxf
+/docs/references/espressif/ESP-WROVER-KIT_V4_1.pdf

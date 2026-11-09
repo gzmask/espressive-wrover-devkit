@@ -1,0 +1,11 @@
+# Proposed OTA migration; building this file does NOT authorize writing it.
+# All offsets/sizes retained. Only app/data subtypes and app labels change.
+# Name, Type, SubType, Offset, Size, Flags
+nvs,data,nvs,0x9000,0x3000,
+otadata,data,ota,0xc000,0x2000,
+free,data,0x40,0xe000,0x2000,
+ota_0,app,ota_0,0x10000,0x150000,
+ota_1,app,ota_1,0x160000,0x150000,
+flash,data,0x40,0x2b0000,0x10000,
+js_code,data,0x40,0x2c0000,0x100000,
+storage,data,0x40,0x3c0000,0x40000,

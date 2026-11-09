@@ -1,0 +1,323 @@
+#include "board_display.h"
+#include "sdkconfig.h"
+#include "wifi_service.h"
+
+#if CONFIG_BOARD_DISPLAY_ENABLE
+
+#if !CONFIG_BOARD_WROVER_KIT_V41_CONFIRMED
+#error "Confirm the PCB v4.1 silkscreen and official LCD wiring before enabling the display"
+#endif
+
+#include <stdatomic.h>
+#include <stdlib.h>
+
+#include "display_probe_logic.h"
+#include "driver/gpio.h"
+#include "driver/spi_master.h"
+#include "esp_app_desc.h"
+#include "esp_check.h"
+#include "esp_heap_caps.h"
+#include "esp_lcd_ili9341.h"
+#include "esp_lcd_io_spi.h"
+#include "esp_lcd_panel_io.h"
+#include "esp_lcd_panel_ops.h"
+#include "esp_log.h"
+#include "esp_system.h"
+#include "esp_timer.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+#include "freertos/task.h"
+
+/* Only the confirmed ESP-WROVER-KIT v4.1 mapping. No SD, JTAG or PSRAM pins. */
+enum {
+    LCD_RESET = 18,
+    LCD_SCLK = 19,
+    LCD_DC = 21,
+    LCD_CS = 22,
+    LCD_MOSI = 23,
+    LCD_MISO = 25,
+    LCD_BACKLIGHT = 5,
+    STRIP_BYTES = DISPLAY_WIDTH * DISPLAY_STRIP_ROWS * 2,
+    DISPLAY_STACK_BYTES = 6144,
+};
+#define LCD_HOST SPI2_HOST
+static const char *TAG = "board_display";
+static atomic_bool started = false;
+static atomic_uint last_frame_tick = 0;
+
+bool board_display_is_healthy(void)
+{
+    unsigned last = atomic_load(&last_frame_tick);
+    return last != 0 && (TickType_t)(xTaskGetTickCount() - last) <= pdMS_TO_TICKS(3000);
+}
+
+typedef struct {
+    esp_lcd_panel_io_handle_t io;
+    esp_lcd_panel_handle_t panel;
+    SemaphoreHandle_t transfer_done;
+    uint8_t *strip;
+    bool bus_initialized;
+    bool backlight_configured;
+    bool dma_uncertain;
+} display_context_t;
+
+static bool color_transfer_done(esp_lcd_panel_io_handle_t io, esp_lcd_panel_io_event_data_t *event,
+                                void *user)
+{
+    (void)io;
+    (void)event;
+    display_context_t *context = user;
+    BaseType_t higher_priority_woken = pdFALSE;
+    xSemaphoreGiveFromISR(context->transfer_done, &higher_priority_woken);
+    return higher_priority_woken == pdTRUE;
+}
+
+static esp_err_t reset_lcd(void)
+{
+    ESP_RETURN_ON_ERROR(gpio_set_level(LCD_RESET, 0), TAG, "reset low failed");
+    vTaskDelay(pdMS_TO_TICKS(20));
+    ESP_RETURN_ON_ERROR(gpio_set_level(LCD_RESET, 1), TAG, "reset high failed");
+    vTaskDelay(pdMS_TO_TICKS(120));
+    return ESP_OK;
+}
+
+static esp_err_t create_io(display_context_t *context, unsigned frequency)
+{
+    const esp_lcd_panel_io_spi_config_t config = {
+        .cs_gpio_num = LCD_CS,
+        .dc_gpio_num = LCD_DC,
+        .spi_mode = 0,
+        .pclk_hz = frequency,
+        .trans_queue_depth = 1,
+        .on_color_trans_done = color_transfer_done,
+        .user_ctx = context,
+        .lcd_cmd_bits = 8,
+        .lcd_param_bits = 8,
+    };
+    return esp_lcd_new_panel_io_spi(LCD_HOST, &config, &context->io);
+}
+
+static esp_err_t initialize_bus(display_context_t *context)
+{
+    /* Preload the OFF level before enabling the active-low backlight output. */
+    ESP_RETURN_ON_ERROR(gpio_set_level(LCD_BACKLIGHT, 1), TAG, "backlight off failed");
+    ESP_RETURN_ON_ERROR(gpio_set_level(LCD_RESET, 1), TAG, "reset preload failed");
+    const gpio_config_t outputs = {
+        .pin_bit_mask = (1ULL << LCD_BACKLIGHT) | (1ULL << LCD_RESET),
+        .mode = GPIO_MODE_OUTPUT,
+    };
+    ESP_RETURN_ON_ERROR(gpio_config(&outputs), TAG, "LCD output config failed");
+    context->backlight_configured = true;
+    const spi_bus_config_t bus = {
+        .sclk_io_num = LCD_SCLK,
+        .mosi_io_num = LCD_MOSI,
+        .miso_io_num = LCD_MISO,
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+        .max_transfer_sz = STRIP_BYTES,
+    };
+    ESP_RETURN_ON_ERROR(spi_bus_initialize(LCD_HOST, &bus, SPI_DMA_CH_AUTO), TAG, "SPI bus failed");
+    context->bus_initialized = true;
+    return create_io(context, 1000000);
+}
+
+static esp_err_t read_id_sample(display_context_t *context, display_id_sample_t *sample, unsigned round)
+{
+    for (unsigned i = 0; i < 3; i++) {
+        /* ST7789V datasheet section 8.4.5: these single-byte reads have no dummy bit. */
+        ESP_RETURN_ON_ERROR(esp_lcd_panel_io_rx_param(context->io, (int)(0xda + i), &sample->rdid[i], 1), TAG,
+                            "RDID read failed");
+    }
+    for (unsigned i = 0; i < 2; i++) {
+        /* ILI9341 indexed read: D9 selects ID4 bytes 2/3 (93/41), then read D3. */
+        uint8_t index = (uint8_t)(0x12 + i);
+        ESP_RETURN_ON_ERROR(esp_lcd_panel_io_tx_param(context->io, 0xd9, &index, 1), TAG,
+                            "ID4 read index failed");
+        ESP_RETURN_ON_ERROR(esp_lcd_panel_io_rx_param(context->io, 0xd3, &sample->id4[i], 1), TAG,
+                            "ID4 read failed");
+    }
+    ESP_LOGI(TAG, "ID read %u: RDID=%02x %02x %02x ID4(indexed)=%02x %02x", round, (unsigned)sample->rdid[0],
+             (unsigned)sample->rdid[1], (unsigned)sample->rdid[2], (unsigned)sample->id4[0],
+             (unsigned)sample->id4[1]);
+    return ESP_OK;
+}
+
+static esp_err_t identify_lcd(display_context_t *context, display_model_t *hint)
+{
+    display_id_sample_t samples[2] = {0};
+    for (unsigned i = 0; i < 2; i++) {
+        ESP_RETURN_ON_ERROR(reset_lcd(), TAG, "probe reset failed");
+        ESP_RETURN_ON_ERROR(read_id_sample(context, &samples[i], i + 1), TAG, "ID read failed");
+    }
+    *hint = display_probe_identify(&samples[0], &samples[1]);
+    ESP_LOGI(TAG, "ID signature=%s; controller and glass still require visual confirmation",
+             display_probe_model_name(*hint));
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_io_del(context->io), TAG, "probe IO deletion failed");
+    context->io = NULL;
+    /* Conservative 10 MHz pixel clock, distinct from the 1 MHz ID read. */
+    return create_io(context, 10000000);
+}
+
+static esp_err_t begin_display(display_context_t *context)
+{
+    ESP_RETURN_ON_ERROR(gpio_set_level(LCD_BACKLIGHT, 1), TAG, "backlight off failed");
+    if (context->panel != NULL) {
+        ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(context->panel, false), TAG, "display off failed");
+        ESP_RETURN_ON_ERROR(esp_lcd_panel_del(context->panel), TAG, "panel deletion failed");
+        context->panel = NULL;
+    }
+    ESP_RETURN_ON_ERROR(reset_lcd(), TAG, "display reset failed");
+    const esp_lcd_panel_dev_config_t config = {
+        .reset_gpio_num = -1, /* The task owns the hardware reset, including during ID probing. */
+        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR,
+        .data_endian = LCD_RGB_DATA_ENDIAN_BIG,
+        .bits_per_pixel = 16,
+    };
+    esp_err_t error = esp_lcd_new_panel_ili9341(context->io, &config, &context->panel);
+    ESP_RETURN_ON_ERROR(error, TAG, "panel creation failed");
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_init(context->panel), TAG, "panel initialization failed");
+    /* Confirmed ILI9341: fixed 320x240 landscape, no periodic direction changes. */
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_swap_xy(context->panel, true), TAG, "swap XY failed");
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_mirror(context->panel, false, false), TAG, "mirror failed");
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(context->panel, true), TAG, "display on failed");
+    ESP_LOGI(TAG, "trial=A driver=ILI9341 id_match=yes; fixed 320x240 landscape, BGR, RGB565 BE, "
+                  "SPI=10MHz; no controller cycling");
+    ESP_LOGW(TAG, "SPI write success does NOT prove a visible image; operator photo/video required");
+    return ESP_OK;
+}
+
+static esp_err_t draw_frame(display_context_t *context, const display_probe_view_t *view)
+{
+    for (unsigned y = 0; y < DISPLAY_HEIGHT; y += DISPLAY_STRIP_ROWS) {
+        if (!display_probe_render_strip(context->strip, STRIP_BYTES, y, DISPLAY_STRIP_ROWS, view)) {
+            return ESP_ERR_INVALID_ARG;
+        }
+        esp_err_t error = esp_lcd_panel_draw_bitmap(context->panel, 0, (int)y, DISPLAY_WIDTH,
+                                                    (int)(y + DISPLAY_STRIP_ROWS), context->strip);
+        if (error != ESP_OK || xSemaphoreTake(context->transfer_done, pdMS_TO_TICKS(2000)) != pdTRUE) {
+            /* Never free/reuse a buffer or ISR context while DMA completion is uncertain. */
+            context->dma_uncertain = true;
+            return error != ESP_OK ? error : ESP_ERR_TIMEOUT;
+        }
+    }
+    return ESP_OK;
+}
+
+static void release_resources(display_context_t *context)
+{
+    if (context->backlight_configured) {
+        (void)gpio_set_level(LCD_BACKLIGHT, 1);
+    }
+    if (context->dma_uncertain) {
+        ESP_LOGE(TAG, "DMA completion uncertain; resources quarantined until reset, no retry");
+        return;
+    }
+    if (context->panel != NULL) {
+        (void)esp_lcd_panel_del(context->panel);
+    }
+    if (context->io != NULL && esp_lcd_panel_io_del(context->io) != ESP_OK) {
+        ESP_LOGE(TAG, "IO cleanup failed; retaining ISR context and buffers until reset");
+        return;
+    }
+    if (context->bus_initialized) {
+        (void)spi_bus_free(LCD_HOST);
+    }
+    vSemaphoreDelete(context->transfer_done);
+    heap_caps_free(context->strip);
+    free(context);
+}
+
+static void display_task(void *argument)
+{
+    display_context_t *context = argument;
+    display_model_t hint = DISPLAY_UNKNOWN;
+    display_model_t plan[2];
+    esp_err_t error = initialize_bus(context);
+    if (error == ESP_OK) {
+        error = identify_lcd(context, &hint);
+    }
+    size_t count = display_probe_plan(hint, plan);
+    if (error == ESP_OK && (count != 1 || plan[0] != DISPLAY_ILI9341)) {
+        ESP_LOGE(TAG, "Expected confirmed ILI9341 ID; stopping LCD, no alternate-driver trial");
+        error = ESP_ERR_NOT_SUPPORTED;
+    }
+    if (error == ESP_OK) {
+        error = begin_display(context);
+    }
+    uint32_t total_frames = 0;
+    TickType_t last_frame = xTaskGetTickCount();
+    while (error == ESP_OK) {
+        wifi_scan_snapshot_t wifi = wifi_scan_initial();
+        (void)wifi_service_get_snapshot(&wifi);
+        wifi_link_snapshot_t link = wifi_link_initial();
+        (void)wifi_service_get_link_snapshot(&link);
+        const display_probe_view_t view = {
+            .model = DISPLAY_ILI9341,
+            .id_match = true,
+            .uptime_s = (uint64_t)(esp_timer_get_time() / 1000000),
+            .free_heap_bytes = esp_get_free_heap_size(),
+            .firmware = esp_app_get_description()->version,
+            .wifi = wifi,
+            .link = link,
+        };
+        error = draw_frame(context, &view);
+        if (error != ESP_OK) {
+            break;
+        }
+        if (total_frames == 0) {
+            error = gpio_set_level(LCD_BACKLIGHT, 0);
+        }
+        if (error == ESP_OK)
+            atomic_store(&last_frame_tick, (unsigned)xTaskGetTickCount());
+        total_frames++;
+        if (total_frames % 10 == 1) {
+            ESP_LOGI(TAG, "driver=%s submitted_frames=%lu heap=%lu internal=%u stack_low=%u bytes",
+                     display_probe_model_name(view.model), (unsigned long)total_frames,
+                     (unsigned long)view.free_heap_bytes,
+                     (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                     (unsigned)uxTaskGetStackHighWaterMark(NULL));
+        }
+        xTaskDelayUntil(&last_frame, pdMS_TO_TICKS(1000));
+    }
+    atomic_store(&last_frame_tick, 0);
+    ESP_LOGE(TAG, "LCD diagnostic stopped: %s; heartbeat remains independent", esp_err_to_name(error));
+    release_resources(context);
+    vTaskDelete(NULL);
+}
+
+esp_err_t board_display_start(void)
+{
+    bool expected = false;
+    if (!atomic_compare_exchange_strong(&started, &expected, true)) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    display_context_t *context = calloc(1, sizeof(*context));
+    if (context == NULL) {
+        atomic_store(&started, false);
+        return ESP_ERR_NO_MEM;
+    }
+    context->strip = heap_caps_malloc(STRIP_BYTES, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+    context->transfer_done = xSemaphoreCreateBinary();
+    if (context->strip == NULL || context->transfer_done == NULL ||
+        xTaskCreate(display_task, "lcd_diagnostic", DISPLAY_STACK_BYTES, context, 1, NULL) != pdPASS) {
+        if (context->transfer_done != NULL) {
+            vSemaphoreDelete(context->transfer_done);
+        }
+        heap_caps_free(context->strip);
+        free(context);
+        atomic_store(&started, false);
+        return ESP_ERR_NO_MEM;
+    }
+    return ESP_OK;
+}
+
+#else
+bool board_display_is_healthy(void)
+{
+    return false;
+}
+esp_err_t board_display_start(void)
+{
+    return ESP_ERR_NOT_SUPPORTED;
+}
+#endif

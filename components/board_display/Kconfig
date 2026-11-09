@@ -1,0 +1,13 @@
+menu "WROVER board display"
+    config BOARD_DISPLAY_ENABLE
+        bool "Enable confirmed ILI9341 board display"
+        default n
+    config BOARD_WROVER_KIT_V41_CONFIRMED
+        bool "PCB silkscreen and official v4.1 LCD wiring confirmed"
+        depends on BOARD_DISPLAY_ENABLE
+        default n
+        help
+            Required before any LCD GPIO is configured. This does not identify
+            the panel controller. Two consistent ILI9341 ID reads are required;
+            unknown or different IDs stop the display without trying other drivers.
+endmenu

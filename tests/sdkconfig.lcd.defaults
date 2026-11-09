@@ -1,0 +1,3 @@
+# Use only on the photo-confirmed ESP-WROVER-KIT v4.1, with operator-approved LCD trials.
+CONFIG_BOARD_DISPLAY_ENABLE=y
+CONFIG_BOARD_WROVER_KIT_V41_CONFIRMED=y

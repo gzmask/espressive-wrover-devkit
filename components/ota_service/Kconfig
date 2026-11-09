@@ -1,0 +1,10 @@
+menu "Radio node OTA"
+    config OTA_SERVICE_ENABLE
+        bool "Enable authenticated HTTPS application OTA"
+        depends on WIFI_SERVICE_CONNECT_ENABLE && BOARD_DISPLAY_ENABLE && SPIRAM
+        default n
+        help
+            Requires separately approved dual-slot partition migration and
+            pinned rollback-enabled bootloader. Never enables NVS or eFuses.
+            Private token/TLS files are embedded via CMake, not sdkconfig.
+endmenu
