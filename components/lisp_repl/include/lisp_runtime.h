@@ -1,4 +1,5 @@
 #pragma once
+#include "lisp_app.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -22,3 +23,13 @@ bool lisp_runtime_selftest_start(uint64_t now_ms);
 bool lisp_runtime_selftest_passed(void);
 /* RAM-only reset; cancels ALL contexts and forgets definitions. No device reset. */
 bool lisp_runtime_reset(void);
+/* Same owner only. App callbacks are separate from request busy/5s deadlines. */
+bool lisp_runtime_app_attach(const lisp_app_display_t *display);
+bool lisp_runtime_app_active(void);
+void lisp_runtime_app_stop(void);
+bool lisp_runtime_app_key(uint8_t key);
+/* Returns true when consumed as an app byte; UART Ctrl-C requests stop. */
+bool lisp_runtime_app_input(uint8_t byte);
+typedef enum { LISP_APP_COMMAND_NONE, LISP_APP_COMMAND_OK, LISP_APP_COMMAND_INVALID } lisp_app_command_t;
+/* Control plane bypasses ordinary eval busy; never evaluates source. */
+lisp_app_command_t lisp_runtime_app_control(const char *source, size_t length);

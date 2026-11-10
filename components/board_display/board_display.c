@@ -70,6 +70,80 @@ bool board_display_is_healthy(void)
     return last != 0 && (TickType_t)(xTaskGetTickCount() - last) <= pdMS_TO_TICKS(3000);
 }
 
+#if CONFIG_LISP_APP_ENABLE
+static lisp_app_canvas_t app_canvas;
+static bool app_canvas_ready; /* Set before task startup, immutable afterwards. */
+static uint16_t *app_pixels;  /* Fixed lifetime, never reclaimed after task startup. */
+static bool app_begin(void *user)
+{
+    (void)user;
+    if (!app_canvas_ready || !board_display_is_healthy())
+        return false;
+    portENTER_CRITICAL(&terminal_lock);
+    bool begun = lisp_app_canvas_begin(&app_canvas);
+    portEXIT_CRITICAL(&terminal_lock);
+    return begun;
+}
+static uint16_t *app_draw(void *user)
+{
+    (void)user;
+    if (!app_canvas_ready || !board_display_is_healthy())
+        return NULL;
+    portENTER_CRITICAL(&terminal_lock);
+    lisp_app_canvas_t snapshot = app_canvas;
+    portEXIT_CRITICAL(&terminal_lock);
+    /* Only the owner can publish. With no pending slot the LCD cannot change
+     * these front/back indices; its front is immutable. Copy OUTSIDE the lock. */
+    return lisp_app_canvas_draw(&snapshot);
+}
+static bool app_publish(void *user)
+{
+    (void)user;
+    portENTER_CRITICAL(&terminal_lock);
+    bool published = lisp_app_canvas_publish(&app_canvas);
+    portEXIT_CRITICAL(&terminal_lock);
+    return published;
+}
+static void app_activate(void *user)
+{
+    (void)user;
+    portENTER_CRITICAL(&terminal_lock);
+    lisp_app_canvas_activate(&app_canvas);
+    portEXIT_CRITICAL(&terminal_lock);
+}
+static void app_restore(void *user)
+{
+    (void)user;
+    portENTER_CRITICAL(&terminal_lock);
+    lisp_app_canvas_restore(&app_canvas);
+    portEXIT_CRITICAL(&terminal_lock);
+}
+static lisp_app_display_state_t app_state(void *user)
+{
+    (void)user;
+    if (!app_canvas_ready || !board_display_is_healthy())
+        return LISP_APP_DISPLAY_FAULT;
+    portENTER_CRITICAL(&terminal_lock);
+    lisp_app_display_state_t state = lisp_app_canvas_state(&app_canvas);
+    portEXIT_CRITICAL(&terminal_lock);
+    return state;
+}
+bool board_display_app_backend(lisp_app_display_t *backend)
+{
+    if (!backend || !app_canvas_ready)
+        return false;
+    *backend =
+        (lisp_app_display_t){NULL, app_begin, app_draw, app_publish, app_activate, app_restore, app_state};
+    return true;
+}
+#else
+bool board_display_app_backend(lisp_app_display_t *backend)
+{
+    (void)backend;
+    return false;
+}
+#endif
+
 typedef struct {
     esp_lcd_panel_io_handle_t io;
     esp_lcd_panel_handle_t panel;
@@ -206,14 +280,16 @@ static esp_err_t begin_display(display_context_t *context)
 }
 
 #if CONFIG_LISP_REPL_ENABLE
-static esp_err_t draw_frame(display_context_t *context, const lcd_terminal_t *view)
+static esp_err_t draw_frame(display_context_t *context, const lcd_terminal_t *view, const uint16_t *pixels)
 #else
 static esp_err_t draw_frame(display_context_t *context, const display_probe_view_t *view)
 #endif
 {
     for (unsigned y = 0; y < DISPLAY_HEIGHT; y += DISPLAY_STRIP_ROWS) {
 #if CONFIG_LISP_REPL_ENABLE
-        bool rendered = lcd_terminal_render_strip(view, context->strip, STRIP_BYTES, y, DISPLAY_STRIP_ROWS);
+        bool rendered =
+            pixels ? lisp_app_render_strip(pixels, context->strip, STRIP_BYTES, y, DISPLAY_STRIP_ROWS)
+                   : lcd_terminal_render_strip(view, context->strip, STRIP_BYTES, y, DISPLAY_STRIP_ROWS);
 #else
         bool rendered = display_probe_render_strip(context->strip, STRIP_BYTES, y, DISPLAY_STRIP_ROWS, view);
 #endif
@@ -277,9 +353,26 @@ static void display_task(void *argument)
     while (error == ESP_OK) {
 #if CONFIG_LISP_REPL_ENABLE
         lcd_terminal_t view;
+        const uint16_t *pixels = NULL;
+#if CONFIG_LISP_APP_ENABLE
+        lisp_app_frame_t app_frame = {0};
+        bool frame_acquired = false;
+#endif
         portENTER_CRITICAL(&terminal_lock);
         view = terminal_snapshot;
+#if CONFIG_LISP_APP_ENABLE
+        if (app_canvas_ready) {
+            frame_acquired = lisp_app_canvas_acquire(&app_canvas, &app_frame);
+            pixels = app_frame.pixels;
+        }
+#endif
         portEXIT_CRITICAL(&terminal_lock);
+#if CONFIG_LISP_APP_ENABLE
+        if (app_canvas_ready && !frame_acquired) {
+            error = ESP_ERR_INVALID_STATE;
+            break;
+        }
+#endif
 #else
         wifi_scan_snapshot_t wifi = wifi_scan_initial();
         (void)wifi_service_get_snapshot(&wifi);
@@ -295,7 +388,18 @@ static void display_task(void *argument)
             .link = link,
         };
 #endif
+#if CONFIG_LISP_REPL_ENABLE
+        error = draw_frame(context, &view, pixels);
+#if CONFIG_LISP_APP_ENABLE
+        if (frame_acquired) {
+            portENTER_CRITICAL(&terminal_lock);
+            lisp_app_canvas_complete(&app_canvas, &app_frame, error == ESP_OK);
+            portEXIT_CRITICAL(&terminal_lock);
+        }
+#endif
+#else
         error = draw_frame(context, &view);
+#endif
         if (error != ESP_OK) {
             break;
         }
@@ -343,6 +447,15 @@ esp_err_t board_display_start(void)
         return ESP_ERR_NO_MEM;
     }
     context->strip = heap_caps_malloc(STRIP_BYTES, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+#if CONFIG_LISP_APP_ENABLE
+    app_pixels = heap_caps_aligned_calloc(8, 2 * LISP_APP_PIXELS, sizeof(uint16_t),
+                                          MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (app_pixels)
+        app_canvas_ready =
+            lisp_app_canvas_init(&app_canvas, app_pixels, app_pixels + LISP_APP_PIXELS, LISP_APP_PIXELS);
+    if (!app_canvas_ready)
+        ESP_LOGE(TAG, "Application canvases unavailable; terminal remains usable, no allocation retry");
+#endif
     context->transfer_done = xSemaphoreCreateBinary();
     if (context->strip == NULL || context->transfer_done == NULL ||
         xTaskCreate(display_task, "lcd_diagnostic", DISPLAY_STACK_BYTES, context, 1, NULL) != pdPASS) {
@@ -350,6 +463,11 @@ esp_err_t board_display_start(void)
             vSemaphoreDelete(context->transfer_done);
         }
         heap_caps_free(context->strip);
+#if CONFIG_LISP_APP_ENABLE
+        heap_caps_free(app_pixels);
+        app_pixels = NULL;
+        app_canvas_ready = false;
+#endif
         free(context);
         atomic_store(&started, false);
         return ESP_ERR_NO_MEM;
@@ -358,6 +476,11 @@ esp_err_t board_display_start(void)
 }
 
 #else
+bool board_display_app_backend(lisp_app_display_t *backend)
+{
+    (void)backend;
+    return false;
+}
 esp_err_t board_display_terminal_update(const lcd_terminal_t *terminal)
 {
     (void)terminal;

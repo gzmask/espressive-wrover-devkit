@@ -1,6 +1,10 @@
-# LispBM REPL＋LCD终端（当前0.3.0 factory，无认证TCP＋UART）
+# LispBM REPL＋LCD终端（当前0.4.0 factory，无认证TCP＋UART＋应用层）
 
-0.3.0已准确批准并各一次USB应用/表迁移；180.203秒正常启动只读通过，actual probe PASS/align_mod8=0、PSRAM128KiB六模式、固定ILI9341帧1→851、心跳日志0→178，联网后健康记录正常。版本/USB only/IP/TCP/nc各一次，无自动eval。UART/TCP/RAM定义保留，固件改USB更新/恢复，无HTTPS/OTA/镜像回退；没有新UART/TCP交互回归或LCD独立目视。两模型各96项离线回归另计；旧12UART/24TCP不能外推本版。见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。
+0.4.0已准确批准并唯一USB应用写入54.1秒，沿用单槽表/旧引导；180.057秒正常启动只读通过：factory/版本/冻结ELF前缀、实际probe PASS/align_mod8=0、PSRAM128KiB六模式、固定ILI9341帧1→851、心跳0→177、联网后34条healthy。版本/USB only/IP/TCP/nc各一次，无自动eval/整段help。全部Flash/security保护在最后启动前；之后只有UART读取与本地解析，没有新UART/TCP交互或LCD独立目视。旧12UART/24TCP不能外推本版，见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。
+
+## 前台应用层（已部署配置，实际切换待交互验收）
+
+板上`LISP_APP_ENABLE=y`，一个全屏app、`init/step/exit`、绘图、UART Ctrl-C / TCP `:stop` / `:key X`及恢复终端。当前没有加载demo或实机测试这些交互；只完成启动/probe/健康验收。定义仍RAM、输入上限1023，没有文件加载器/存储/BT/DSP。生命周期与普通提交busy/5秒期限分开，示例和限制见 [LISP_APPS.md](LISP_APPS.md)。全部写权限耗尽，UART释放，交互需另行明确许可。
 
 ## 历史0.2.4 B/VALID（已迁移，不再是备用槽）
 

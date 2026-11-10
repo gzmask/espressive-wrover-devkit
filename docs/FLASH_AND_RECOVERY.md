@@ -1,6 +1,14 @@
 # 串口恢复、当前保护边界与历史烧录记录
 
-## 当前单槽USB：0.3.0 factory，已部署
+## 当前单槽USB：0.4.0 factory，已部署
+
+准确批准564c97b.../989280字节/[10000,102000)/242扇区后，新同板/8字段/实际完整0.3.0基线与旧引导检查通过，唯一USB应用写入54.1秒；应用/FFpadding/全部保护补集/8字段与实际完整4MiB预期匹配，表/引导/NVS/旧控制/旧数据和范围外不写。之后一次180.057秒正常RTS启动只读通过，无UART/TCP表达式、demo、重试或恢复。
+
+最新私有参考`.local/flash/lisp-app-0.4.0/post-protection/current-0.4.0-expected.bin`为重建/实际完整SDK匹配，**非新双读备份**。所有Flash/security检查均在最后正常启动前，之后仅UART读取和本地解析。0.3.0全片不再代表当前应用，不改旧档案；完整快照仍含旧B秘密，旧B没有独立备用槽。所有写权限耗尽，UART释放，无后台任务。
+
+后续任何更新/恢复都需要新准确镜像hash/factory实际扇区范围批准与新同板/8字段/当前0.4.0实际完整4MiB基线，单次新marker USB，不重试/自动恢复/整片erase/表/NVS/eFuse变化。实际USB旧版写回/手动BOOTEN/故障注入仍未验收；应用切屏/退出也未交互验收，交互另批。当前证据见新checkpoint execution-*和acceptance-summary；旧PENDING候选不是新许可。
+
+## 历史0.3.0：首次单槽USB迁移（应用已被0.4.0替换）
 
 准确批准后应用和表各一次USB写入/全片核验通过；保留原bootloader、NVS/reserved/free/旧数据及全部范围外内容。正常factory0x10000/2.625MiB启动只读180.203秒通过，probe/LCD/TCP/联网后健康正常，未发送UART/TCP测试表达式。USB下载/写入迁移通过，不等于实际写回旧版恢复或手动BOOT/EN已实测。
 

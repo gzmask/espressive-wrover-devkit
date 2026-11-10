@@ -17,6 +17,8 @@ typedef struct {
     unsigned row, column, input_cursor;
     bool wrap_pending;
 } lcd_terminal_t;
+/* Shared fixed ASCII font; coordinates within an 8x12 character cell. */
+bool lcd_terminal_glyph_pixel(unsigned char character, unsigned x, unsigned y);
 void lcd_terminal_init(lcd_terminal_t *terminal);
 void lcd_terminal_write(lcd_terminal_t *terminal, const char *text, size_t length);
 /* Last row is reserved for an editable input window; printable ASCII only. */

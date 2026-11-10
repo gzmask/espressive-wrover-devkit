@@ -101,6 +101,13 @@ static const uint8_t font[95][5] = {
     {8, 4, 8, 0x10, 8},
 };
 
+bool lcd_terminal_glyph_pixel(unsigned char character, unsigned x, unsigned y)
+{
+    if (character < 32 || character > 126)
+        character = '?';
+    return x >= 1 && x <= 5 && y >= 2 && y <= 8 && (font[character - 32][x - 1] & (1u << (y - 2))) != 0;
+}
+
 void lcd_terminal_input(lcd_terminal_t *terminal, const char *prompt, const char *text, size_t length)
 {
     if (terminal == NULL || prompt == NULL || (text == NULL && length != 0))
@@ -192,8 +199,7 @@ bool lcd_terminal_render_strip(const lcd_terminal_t *terminal, uint8_t *out, siz
             unsigned char ch = (unsigned char)terminal->cells[cell_y][cell_x];
             if (ch < 32 || ch > 126)
                 ch = '?';
-            bool ink = glyph_x >= 1 && glyph_x <= 5 && glyph_y >= 2 && glyph_y <= 8 &&
-                       (font[ch - 32][glyph_x - 1] & (1u << (glyph_y - 2))) != 0;
+            bool ink = lcd_terminal_glyph_pixel(ch, glyph_x, glyph_y);
             bool input = cell_y == LCD_TERMINAL_OUTPUT_ROWS;
             bool cursor = input && cell_x == terminal->input_cursor && glyph_y == 10;
             uint16_t color = cursor ? 0x07ff : ink ? (input ? 0x07ff : 0xffff) : 0;

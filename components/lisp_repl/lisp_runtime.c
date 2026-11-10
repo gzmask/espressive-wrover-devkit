@@ -1,4 +1,5 @@
 #include "lisp_runtime.h"
+#include "lisp_app_runtime.h"
 #include "lispbm.h"
 
 /* Upstream lbm_image.h requires LispBM types to have been declared first. */
@@ -10,7 +11,7 @@ enum {
     HEAP_CELLS = 8192,
     MEMORY_BLOCKS = 1024,
     IMAGE_WORDS = 8192,
-    EXTENSIONS = 8,
+    EXTENSIONS = 16,
     RESULT_CAPACITY = 512,
     STEP_BATCH = 64,
     EVAL_TIMEOUT_MS = 5000,
@@ -39,6 +40,15 @@ static size_t output_remaining;
 static bool output_dropped;
 uint32_t wrover_lisp_timestamp_us;
 
+void lisp_runtime_limit_output(size_t bytes)
+{
+    output_remaining = bytes;
+    output_dropped = false;
+}
+bool lisp_runtime_output_dropped(void)
+{
+    return output_dropped;
+}
 static void emit(const char *text)
 {
     size_t length = strlen(text);
@@ -79,6 +89,8 @@ static lbm_value print_extension(lbm_value *arguments, lbm_uint count)
 }
 static void done(eval_context_t *context)
 {
+    if (lisp_app_runtime_done(context))
+        return;
     if (context->id != root_id)
         return;
     output_remaining = RESULT_CAPACITY + 128;
@@ -90,6 +102,7 @@ static void done(eval_context_t *context)
         active = false;
         return;
     }
+    lisp_app_runtime_launch_finished(!lbm_is_error(context->r));
     if (output_dropped)
         emit("WARNING: print output truncated\n");
     emit(lbm_is_error(context->r) ? "ERROR: " : "=> ");
@@ -114,6 +127,7 @@ bool lisp_runtime_reset(void)
     init_stage = "storage";
     if (storage == NULL)
         return false;
+    lisp_app_runtime_reset();
     active = false;
     initialized = false;
     selftest_running = false;
@@ -151,6 +165,9 @@ bool lisp_runtime_reset(void)
     init_stage = "print-extension";
     if (!lbm_add_extension("print", print_extension))
         return false;
+    init_stage = "app-extensions";
+    if (!lisp_app_runtime_register(output, output_user))
+        return false;
     init_stage = "ready";
     initialized = true;
     return true;
@@ -169,8 +186,8 @@ bool lisp_runtime_init(void *memory, size_t capacity, lisp_output_fn callback, v
 }
 bool lisp_runtime_submit(const char *source, size_t length, uint64_t now_ms)
 {
-    if (!initialized || active || source == NULL || length == 0 || length >= sizeof(storage->source) ||
-        memchr(source, 0, length) != NULL)
+    if (!initialized || active || lisp_runtime_app_active() || source == NULL || length == 0 ||
+        length >= sizeof(storage->source) || memchr(source, 0, length) != NULL)
         return false;
     /* Interop launcher allocation does not trigger GC on its own. Collect
      * before replacing the previous reader buffer, on this same owner. */
@@ -198,8 +215,10 @@ static void has_context(eval_context_t *context, void *found, void *unused)
 }
 void lisp_runtime_step(uint64_t now_ms)
 {
-    if (!initialized || !active)
+    if (!initialized || !active) {
+        lisp_app_runtime_step(now_ms);
         return;
+    }
     if (now_ms - started_ms >= EVAL_TIMEOUT_MS) {
         output_remaining = RESULT_CAPACITY;
         emit("ERROR: evaluation timeout; RAM definitions cleared\n");

@@ -2,7 +2,18 @@
 
 ESP-WROVER-KIT v4.1 / 经典 ESP32 的 ESP-IDF 固件：FreeRTOS、PSRAM、ILI9341、自动 Wi-Fi、USB固件更新与 RAM-only LispBM REPL。
 
-## 当前设备：0.3.0单槽＋USB更新（factory，已验收）
+## 当前设备：0.4.0 LispBM 应用层（factory已部署；demo已启动）
+
+用户明确请求后，已通过TCP一次加载demo、一次run，9秒后确认应用仍持有屏幕，关闭连接后保留运行；未q/:stop、复位或刷写。实际LCD目视/颜色/FPS和退出返回终端仍待确认，见 [LISP_APPS.md](docs/LISP_APPS.md)。
+
+准确批准后，`0.4.0-lisp-app-usb`／989280字节／SHA256 `564c97b824af015d0b475399ce75abd192aa103f37f9a3a30c5f089bf3b68d0b`，在`[0x10000,0x102000)`/242扇区**一次USB写入54.1秒**。沿用0.3.0表和旧bootloader，无NVS/旧控制/旧数据/范围外写入、OTA、重试或恢复。
+
+- **180.057秒正常启动只读通过**：factory10000/2a0000、版本/冻结ELF前缀、ready/align_mod8=0/实际probe PASS、PSRAM128KiB六模式、固定ILI9341帧1→851、心跳0→177；ONLINE8417ms/TCP8487ms，12577ms起34条healthy。版本/USB/USB only/IP/TCP/nc各一次，无自动help/eval。
+- 写前/写后实际完整4MiB与8安全字段、应用/FFpadding/全部保护范围通过，**均在最终正常启动前**；之后只有UART读取与本地解析。最新私有`lisp-app-0.4.0/post-protection/current-0.4.0-expected.bin`是重建/实际SDK匹配，非新双读；旧0.3.0全片已不代表当前应用，旧冻结不改。旧B字节及秘密保留不是备用槽或秘密清除。
+- 本版明确启用`LISP_APP_ENABLE=y`：全屏app、init/step/exit、绘图、UART Ctrl-C / TCP :stop/:key X及恢复终端。**该USB只读启动验收阶段未加载demo或发送表达式；后续demo已按明确请求运行并确认逻辑持屏，但显示目视/退出未验收**。定义仍RAM、输入1023字节，尚无文件加载器。示例 [`examples/lisp/demo.lisp`](examples/lisp/demo.lisp)，见 [LISP_APPS.md](docs/LISP_APPS.md)。
+- 两模型各128 C ASan/UBSan、28Python/4历史mock、六配置及正式候选构建通过。新写入helper模型/marker mock及2个只读capture mock先通过，不混作实机交互。全部写权限消费，UART释放，无后台监控；后续交互另批、固件须新准确hash/范围批准，不自动BT/DSP/commit/push。
+
+## 历史设备：0.3.0单槽＋USB首次迁移（已被0.4.0应用替换）
 
 用户准确批准后，应用和分区表各一次USB写入完成，无重试/OTA POST。设备运行 **0.3.0-single-usb / factory 0x10000**，应用分区2.625MiB；镜像980176字节，余约1.69MiB。原bootloader、NVS、reserved旧控制、free和旧用户数据及全部范围外Flash保持不变。旧B字节保留但不再是备用槽；不做镜像回退。
 
@@ -72,9 +83,9 @@ HTTPS8443认证 `POST /repl`，原token/TLS，无新裸TCP监听/WebSocket/浏�
 | 硬件 | ESP32-D0WD rev1.0，4 MB Flash，40 MHz 晶振，CPU 160 MHz；不是 ESP32-S3 |
 | PSRAM | 8 MiB 器件、4 MiB 映射；启动测试及独占 128 KiB 六模式通过，不是完整 8 MiB 测试 |
 | LCD | 固定ILI9341 / 320×240、40×20 ASCII终端；两次一致9341才初始化，未知ID停止；提交日志通过，终端目视待反馈 |
-| LispBM | USB UART115200＋无认证TCP2323，共享RAM不保存/NVS；0.3.0只读启动/probe验收通过，旧12UART/24TCP仅历史，不自动eval |
+| LispBM | USB UART115200＋无认证TCP2323，共享RAM不保存/NVS；0.4.0只读启动/probe通过，应用切换与新交互未测；旧12UART/24TCP仅历史，不自动eval |
 | Wi-Fi | 应用内嵌凭据，启动自动连接；美国 US / 信道 1–11 / MANUAL，仅 2.4 GHz；不写旧 NVS |
-| 网络 | 仅原明文TCP2323 REPL，无TLS/token；0.3.0不提供HTTPS8443/status/health/OTA |
+| 网络 | 仅原明文TCP2323 REPL，无TLS/token；0.4.0不提供HTTPS8443/status/health/OTA |
 | 固件更新 | 单factory2.625MiB，USB更新／电脑恢复；首次应用＋表迁移通过，无板上镜像回退，实际写回恢复尚未验收 |
 | 未实现 | DSP/音频、蓝牙键盘/音箱、SD、Agent、BLE、LoRa、uLisp；不提供明文 HTTP、文件管理、任意命令或网络 bootloader/分区表更新 |
 
@@ -86,7 +97,7 @@ HTTPS8443认证 `POST /repl`，原token/TLS，无新裸TCP监听/WebSocket/浏�
 
 ## 构建与测试
 
-ESP-IDF 固定 **v5.5.6** / commit `880a203ae603d08a94d06aa01e0d6761958e5e9e`。源码默认版本已改为 **0.3.0-single-usb**，默认单槽USB更新模式，可选PSRAM/LCD/Wi-Fi/Lisp仍需明确启用。板上0.3.0已用完整PSRAM/LCD/STA/TCP配置通过单槽迁移；源码默认的功能关闭配置不等于板上配置。
+ESP-IDF 固定 **v5.5.6** / commit `880a203ae603d08a94d06aa01e0d6761958e5e9e`。源码默认版本已改为 **0.3.0-single-usb**，默认单槽USB更新模式，可选PSRAM/LCD/Wi-Fi/Lisp仍需明确启用。0.3.0已完成单槽迁移，当前0.4.0通过一次USB应用更新启用Lisp应用层；源码默认关闭配置不等于板上full配置。
 
 ```sh
 umask 077
@@ -100,7 +111,7 @@ python -m unittest discover -s tests -p 'test_*.py'
 bb tests/test_ota_upload.bb
 ```
 
-当前源码默认64位与额外32位值模型各96项C ASan/UBSan、28Python、4个历史上传mock及五配置构建通过；0.3.0另有真实USB迁移和180.203秒factory正常启动只读证据。旧12UART/24TCP交互仅历史，本版不自动eval。mock不替代实机证据。精确构建见 [BUILD.md](docs/BUILD.md)，当前更新边界见 [单槽USB](docs/SINGLE_APP_USB.md)，旧OTA见 [历史OTA](docs/OTA.md)。**不要执行构建输出建议的通用 `idf.py flash` / `@flash_args`。**
+当前源码默认64位与额外32位值模型各128项C ASan/UBSan、28Python、4个历史上传mock及六配置和正式候选构建通过；0.4.0另有唯一USB应用写入和180.057秒factory正常启动只读证据。旧12UART/24TCP交互仅历史，本版不自动eval。mock不替代实机证据。精确构建见 [BUILD.md](docs/BUILD.md)，当前更新边界见 [单槽USB](docs/SINGLE_APP_USB.md)，旧OTA见 [历史OTA](docs/OTA.md)。**不要执行构建输出建议的通用 `idf.py flash` / `@flash_args`。**
 
 凭据、token、TLS 私钥由外部私有文件链接，不放值进源码/sdkconfig/命令行。BIN/ELF/生成汇编/目标文件和当前 Flash 快照含这些秘密，只留私有、Git 忽略的 `.local/`，禁用 ccache。目录 0700，输入/日志 0600，冻结产物 0400。不要分享镜像或重新生成正在使用的 key/token。
 
@@ -112,6 +123,7 @@ bb tests/test_ota_upload.bb
 | [OTA](docs/OTA.md) | 旧双槽HTTPS与历史升级记录；当前单槽不再使用 |
 | [构建](docs/BUILD.md) | 固定工具链、默认关闭与 OTA 配置、测试 |
 | [LispBM REPL](docs/LISP_REPL.md) | 当前UART/LCD与首次失败/修复历史 |
+| [LispBM 应用层](docs/LISP_APPS.md) | 已部署配置；全屏绘图/生命周期/恢复终端，实机切换待交互 |
 | [蓝牙键盘调研](docs/BLUETOOTH_KEYBOARD.md) | 离线HID Host选型、配对/NVS阻断与最小输入接入方案；尚未实现 |
 | [Wi-Fi REPL](docs/WIFI_REPL.md) | 当前无认证TCP2323/nc协议与原owner/RAM边界 |
 | [测试结果](docs/TEST_RESULTS.md) | 当前与历史 PASS / NOT TESTED |
@@ -136,6 +148,7 @@ components/memory_pattern/   可在主机测试的纯内存模式算法
 components/board_display/    固定 v4.1 接线、ILI9341、独立显示任务
 components/wifi_service/     扫描、STA/DHCP、嵌入凭据及纯状态逻辑
 components/ota_service/      历史双槽回归，仅显式选择，当前固件不链接
+components/lisp_app/         双画布所有权、裁剪/光栅与控制解析
 components/lcd_terminal/     40×20 ASCII模型与纯RGB565条带渲染
 components/lispbm_runtime/   固定上游解释器及单所有者适配
 components/lisp_repl/        RAM运行时、分阶段初始化/probe、UART交互
@@ -146,4 +159,4 @@ tests/                      主机测试及独立构建配置
 docs/                       当前说明与明确分版的历史记录
 ```
 
-当前私有检查点 `.local/flash/single-usb-0.3.0/`；先读execution-CONTINUE/execution-resume/acceptance-summary。`post-protection/current-0.3.0-expected.bin` 是重建且实际完整SDK摘要匹配的4MiB预期，**不是新双读备份**，核验在最终180秒正常启动之前。旧0.2.4及更早全片不再代表当前表/应用。冻结candidate/source/PENDING文档保留历史，实际验收另存；不修改旧档案。
+当前私有检查点 `.local/flash/lisp-app-0.4.0/`；先读execution-CONTINUE/execution-resume/acceptance-summary。`post-protection/current-0.4.0-expected.bin`是重建且实际完整SDK摘要匹配的4MiB预期，**不是新双读备份**，所有保护在最后正常启动之前。旧0.3.0及更早全片不再代表当前应用，冻结candidate/source/PENDING历史不改，实际authorization/marker/验收另存。

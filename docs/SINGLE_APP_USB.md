@@ -1,4 +1,16 @@
-# 单应用分区＋USB更新／恢复（0.3.0 factory，已部署验收）
+# 单应用分区＋USB更新／恢复（当前0.4.0 factory，已部署）
+
+## 当前0.4.0：仅应用更新，沿用单槽表与旧引导
+
+准确批准SHA256 `564c97b824af015d0b475399ce75abd192aa103f37f9a3a30c5f089bf3b68d0b`／989280字节／`[0x10000,0x102000)`/242扇区后，一次USB应用写入54.1秒，无表/bootloader/NVS/旧控制/eFuse写入或重试/恢复。写前新同板/8字段/实际完整0.3.0基线和旧引导，写后应用/FFpadding/全部补集/8字段及实际完整4MiB预期均匹配。所有Flash/security检查在最后启动前。
+
+**180.057秒正常启动只读通过**：0.4.0/factory/冻结ELF前缀、实际probe PASS/align_mod8=0、PSRAM128KiB六模式、固定ILI9341帧1→851、心跳0→177；ONLINE8417ms/TCP8487ms，12577ms起34条healthy（最后177577ms），仅联网等待中6577ms一次unhealthy。版本/USB/USB only/IP/TCP/nc各一次，无自动eval/help，没有UART/TCP测试表达式或demo。Lisp前台应用已启用，但实际切换/绘图/退出和新LCD目视仍未验收，见 [LISP_APPS.md](LISP_APPS.md)。
+
+最新私有`.local/flash/lisp-app-0.4.0/post-protection/current-0.4.0-expected.bin`是准确应用＋实际SDK匹配0.3.0参考＋FFpadding重建并实际完整SDK匹配，非新双读备份。旧0.3.0全片不再代表当前应用；旧B秘密与字节保留不是备用槽/秘密清除。所有保护在最后180秒之前，此后仅UART读取及本地解析，未再读Flash/HTTPS。
+
+当前检查点`.local/flash/lisp-app-0.4.0/`，先读execution-CONTINUE/execution-resume/acceptance-summary/final-boot-summary/post-protection/summary和authorization/usb-app-write-attempt；冻结candidate/resume/CONTINUE旧PENDING/0次不改，不能重用权限。全部写权限耗尽，UART释放，无后台监控，交互另需批准。
+
+## 历史0.3.0：首次应用＋表迁移（旧应用已替换）
 
 用户准确批准新应用SHA256 `6da2c426a0c82b54466e4508ea96e72d27751964a284963f92ad88ed1eb7a82a`／980176字节／擦写[0x10000,0x100000)，及新表SHA256 `7c33ad72c9d1933019ac793032f93a01d599206b2610a7d4dcf41219f72ec881`／3072字节／擦写[0x8000,0x9000)，已按顺序各一次USB写入、全片核验后正常启动。无重试/OTA POST/bootloader/NVS/control/eFuse写入；两项许可已耗尽。
 
@@ -87,4 +99,4 @@ idf.py -B .local/build-single-usb-full \
 
 **恢复当前旧双槽0.2.4不只是重刷一个app**：旧应用带双槽OTA服务，不能在新factory表中直接当作兼容恢复镜像。恢复须配套旧分区表、A/B内容及需要恢复的控制记录，明确所有被新单槽应用覆盖的范围，并重新批准；不自动整片写回旧快照。
 
-最新检查点为 `.local/flash/single-usb-0.3.0/`；当前事实以execution-CONTINUE/execution-resume和acceptance-summary等执行记录为准。原candidate/CONTINUE/resume的PENDING冻结历史不改，原0.2.4及所有旧冻结产物也不改。
+最新检查点为 `.local/flash/lisp-app-0.4.0/`；当前事实以execution-CONTINUE/execution-resume和acceptance-summary等执行记录为准。原candidate/CONTINUE/resume的PENDING冻结历史不改，原0.3.0及所有更旧冻结产物也不改。

@@ -2,7 +2,23 @@
 
 硬件初检：2026-11-07 01:14 UTC；当前设备记录截止2026-11-10，LCD终端目视仍待反馈。状态采用PASS / FAIL / NOT TESTED；历史未实现/旧端口只属于对应版本，不能当作当前限制或新写入许可。
 
-## 当前0.3.0 factory：单槽USB迁移与只读启动验收
+## 当前0.4.0 factory：一次USB应用更新／只读启动通过，应用交互未测
+
+- **PASS（写入）** — 准确批准564c97b.../989280字节/[10000,102000)/242扇区后，新同板/8字段/实际完整0.3.0基线与已冻结旧引导通过，新marker唯一USB应用写入54.1秒；无表/引导/NVS/旧控制/eFuse写入、OTA POST、重试或恢复。
+- **PASS（保护）** — 新应用＋FFpadding、表/引导/NVS/reserved/free/旧B完整字节/旧数据及全部补集、8安全字段和实际完整4MiB预期匹配。current-0.4.0-expected.bin为重建/实际SDK匹配，非新双读。全部保护在最后正常启动前，此后仅UART采集和本地解析。
+- **PASS（正常启动只读180.057秒）** — 单次factory10000/002a0000；0.4.0/冻结ELF前缀、init_stage=ready align_mod8=0实际probe PASS、PSRAM128KiB六模式、固定ILI9341帧1→851/心跳0→177。ONLINE8417ms/TCP8487ms，12577ms起34条healthy（最后177577ms）；6577ms仅一次联网等待unhealthy。版本/USB/USB only/IP/TCP/nc各一次，无auto-help/eval/OTA提示，未发UART/TCP测试表达式，未运行demo或accept_*。
+- **PASS（helper离线门控）** — 新USB专用helper完整模型/范围/marker-before-one-write/失败无重试/错误授权mock及Kondo0/格式先通过；2个只读pyserial capture mock验证无写字节、只一次reset/open/close与失败不重试。新纯本地总结正/负例通过，没有硬件重试。
+- **NOT TESTED** — 实际Lisp应用切屏/绘图/退出、UART/TCP新交互、LCD目视/FPS/颜色/撕裂、画布PSRAM压力/full8MiB/长GC/10分钟、真实WiFi掉线/owner隔离/掉电/USB恢复、BT/DSP/SD。旧12UART/24TCP不挪作本版。UART已释放，无后台监控，全部写权限耗尽。
+
+## 历史源码阶段：Lisp前台应用层离线完成（后续已部署，见上节）
+
+- **PASS（主机）** — 默认64位与value32/pointer64各128项C ASan/UBSan；新增32项画布/光栅/控制、真实解释器回调/GC/超时/退出、初始化故障、示例加载不自动运行、UART Ctrl-C、恢复超时/显示失败，以及并发画布和生产session/socket/主机邮箱模型。应用12秒为模拟时钟，不是板上长测。
+- **PASS（并发模型）** — 两个主机线程验证50次启停中前画布整帧不可变；真实socketpair验证启动及时回复、运行中源码拒绝/key/EOF继续/复连/stop。不是SPI/DMA/lwIP/FreeRTOS邮箱或真实Wi-Fi故障注入。
+- **PASS（回归）** — 28Python、4历史OTA mock；六个新独立构建：单槽应用TCP、应用UART、应用关闭UART、功能关闭、LCD扫描、显式历史TCP/OTA（应用关闭）；full开发镜像989280字节，余1763232字节，非冻结候选。
+- **PASS（检查）** — 自有C严格编译、clang-format、四个纯逻辑文件Clang分析；未修改上游，保留既有warning。新TCP word32测试首次因POSIX隐藏MAP_ANON编译阻断，已在该测试声明Darwin扩展修正；这是主机测试错误，无设备动作。
+- **NOT TESTED（设备）** — 板上应用切换/退出、UART/TCP新交互、PSRAM画布压力、LCD目视/FPS/颜色/撕裂。设备仍是下述0.3.0，本轮无USB/UART/设备网络访问、复位或写入，所有旧授权仍耗尽。详情 [LISP_APPS.md](LISP_APPS.md)。
+
+## 历史0.3.0 factory：首次单槽USB迁移与只读启动验收
 
 - **PASS（主机）** — 默认64位与value32/pointer64各96项C ASan/UBSan；新增USB banner与3个健康状态用例，原实际LispBM逻辑回归保留。28Python（含新单槽分区4项、配置guard9项）和4个历史OTA mock通过，无设备IO。
 - **PASS（构建）** — 新单槽full/off/scan/uart及显式历史OTA五配置；新factory容量2.625MiB，完整镜像初测980176字节，余1772336字节。单槽无OTA服务/HTTP server/上传函数/OTA密钥符号，仍保留Lisp/TCP/静默probe和健康诊断。

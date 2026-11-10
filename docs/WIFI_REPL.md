@@ -1,6 +1,8 @@
-# Wi-Fi REPL：直接TCP，无证书/token（当前0.3.0 factory，已部署）
+# Wi-Fi REPL：直接TCP，无证书/token（当前0.4.0 factory，已部署）
 
-当前0.3.0单槽USB保留本TCP2323协议/原owner，无登录或自动eval；固件用USB更新/恢复，不提供HTTPS8443/OTA/status/health。准确批准后应用＋表各一次USB写入，180.203秒正常启动只读验收通过：8.384秒ONLINE、8.444秒监听就绪，版本/IP/nc提示各一次。新UART/TCP交互回归未执行，旧0.2.3真实nc测试仅历史。见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。
+0.4.0-lisp-app-usb已准确批准并唯一USB应用写入54.1秒，沿用单槽表/旧引导。180.057秒正常启动只读通过：ONLINE8417ms/TCP8487ms、版本/IP/nc提示各一次、实际probe PASS与联网后34条healthy。网络仍TCP2323，无登录/自动eval/HTTPS/OTA；本次没有UART/TCP交互或demo，旧0.2.3 nc测试仅历史。见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。
+
+当前启用Lisp应用层：终端模式仍如下REPL，应用运行期间普通源码拒绝，TCP :stop/:key X为控制命令，断线不停止应用，详见 [LISP_APPS.md](LISP_APPS.md)。这些新交互目前仅主机测试，未实机验收；全部写权限已消费，后续交互另批。
 
 以下0.2.4/旧OTA说明为历史，旧接口/IP参考和冻结PENDING不能当作当前操作任务或权限。
 
@@ -20,7 +22,7 @@
 nc DEVICE_IPV4 2323
 ```
 
-当前IP仅私存 `.local/flash/single-usb-0.3.0/device-ip.txt`，DHCP可能改变，不发布IP/MAC。直接出现 `lbm>`，输入：
+当前IP仅私存 `.local/flash/lisp-app-0.4.0/device-ip.txt`，DHCP可能改变，不发布IP/MAC。直接出现 `lbm>`，输入：
 
 ```lisp
 (+ 1 2)
@@ -57,14 +59,14 @@ nc DEVICE_IPV4 2323
 - 新构建使用独立 `.local/build-tcp-repl-*`，不覆盖0.2.2/0.2.1冻结产物。含Wi-Fi/OTA秘密的bin/ELF/对象只留私有 `.local/`，目录0700、日志0600、冻结0400，禁用ccache。
 - 真实TCP连接/普通EOF重连/半句丢弃、UART未完成输入busy保护与OTA确认已通过上述有限路径；**NOT TESTED**：LCD目视/滚动、任意并发/慢客户端、真实Wi-Fi掉线/丢ACK、owner8秒隔离故障注入、长GC/full8MiB/10分钟/受控断电/新回退故障注入。主机证据与真实设备结果分开记录。
 
-## 冻结镜像（已准确批准并单次部署，授权耗尽）
+## 历史0.2.3冻结镜像（旧双槽阶段，授权耗尽）
 
 `0.2.3-tcp-repl-ota`，1106176字节，SHA256 `30e3d441688931e76e5878417f333e8140ae05ff91a3076e208ca7569cf33941`；A镜像 `[0x10000,0x11e100)`、擦写 `[0x10000,0x11f000)`/271扇区，另仅SDK控制 `[0xc000,0xe000)` 生命周期更新。A比旧0.2.1擦除窗口多一个扇区，仍不越槽/不碰B。
 
 私有冻结 `.local/flash/tcp-repl-2026-11-10/`：111个来源文件构建前后相同、SDK镜像头/footer与SHA256SUMS通过，app/ELF/sdkconfig/source0400。后来用户对该准确hash/范围明确批准，已创建authorization/marker并完成唯一POST；冻结candidate/source保留原PENDING历史，当前事实见acceptance-summary/resume，不改档案、不作为再次写许可。
 
-## 设备与下一次部署边界
+## 历史0.2.4设备与下一次OTA边界（不适用当前0.4.0）
 
-当前运行0.2.4/B/VALID，A0.2.3完整保留备用；当前检查点 `.local/flash/boot-info-2026-11-10/`，先读CONTINUE/resume/acceptance-summary/final-boot-summary/post-protection/summary及authorization/marker（本版没有tcp-tests/交互eval）。最新参考 `post-protection/current-0.2.4-expected.bin` 是重建且实际完整SDK匹配，不是新双读；核验在最终B180秒前。旧0.2.3及更早全片预期不再代表当前B/控制，不改旧归档。
+历史0.2.4阶段运行B/VALID并保留A0.2.3备用；当时检查点 `.local/flash/boot-info-2026-11-10/`，先读CONTINUE/resume/acceptance-summary/final-boot-summary/post-protection/summary及authorization/marker（本版没有tcp-tests/交互eval）。最新参考 `post-protection/current-0.2.4-expected.bin` 是重建且实际完整SDK匹配，不是新双读；核验在最终B180秒前。旧0.2.3及更早全片预期不再代表当前B/控制，不改旧归档。
 
 全部写权限已耗尽。下次新镜像须新准确hash/范围批准，目标非运行 **A**，会替换备用0.2.3，保留当前B及补集。仍须新同板/8字段/实际最新4MiB基线，先采集等就绪再最终TLS，最后唯一POST；失败停止，不重传、不USB恢复。DSP/蓝牙仍未加入。

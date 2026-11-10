@@ -112,7 +112,16 @@ static const char help[] = "LispBM RAM-only REPL; UART0 115200\n"
                            "BS/DEL edit; Ctrl-U clears this line.\n"
                            "Ctrl-C/:reset forget ALL RAM definitions.\n"
                            ":help help; :clear clears LCD output.\n"
-                           "No save, Bluetooth, DSP or hardware IO.\n"
+                           "No save, Bluetooth or DSP.\n"
+#if CONFIG_LISP_APP_ENABLE
+                           "Apps: (app-run (list init step exit)); step event -1=tick.\n"
+                           "App UART Ctrl-C stops.\n"
+#if CONFIG_WIFI_REPL_ENABLE
+                           "App TCP: :stop or :key X.\n"
+#endif
+#else
+                           "No hardware IO.\n"
+#endif
 #if CONFIG_WIFI_REPL_ENABLE
                            "Wi-Fi: plain TCP2323; no TLS/token.\n"
 #endif
@@ -137,7 +146,8 @@ static void serial_write(const char *text, size_t length)
 static void output(void *user, const char *text, size_t length)
 {
     (void)user;
-    lcd_terminal_write(&frontend.terminal, text, length);
+    if (!lisp_runtime_app_active())
+        lcd_terminal_write(&frontend.terminal, text, length);
 #if CONFIG_WIFI_REPL_ENABLE
     if (remote_active)
         repl_remote_reply_append(&remote.reply, text, length);
@@ -150,7 +160,15 @@ static void message(const char *text)
 }
 static void prompt(void)
 {
-    serial_write(frontend.line_start ? "...> " : "lbm> ", 5);
+    static const char app_prompt[] = "app> Ctrl-C stops"
+#if CONFIG_WIFI_REPL_ENABLE
+                                     "; TCP :stop/:key X"
+#endif
+                                     "\n";
+    if (lisp_runtime_app_active())
+        serial_write(app_prompt, sizeof(app_prompt) - 1);
+    else
+        serial_write(frontend.line_start ? "...> " : "lbm> ", 5);
 }
 static void finish(void)
 {
@@ -159,6 +177,8 @@ static void finish(void)
 }
 static void input_byte(uint8_t byte)
 {
+    if (lisp_runtime_app_input(byte))
+        return; /* Includes Ctrl-C during an accepted, still-starting remote app launch. */
 #if CONFIG_WIFI_REPL_ENABLE
     if (remote_active)
         return; /* No UART bytes spliced into a network command. */
@@ -225,6 +245,17 @@ static void remote_poll(void)
     if (xQueueReceive(remote_commands, &signal, 0) != pdTRUE)
         return;
     repl_remote_reply_init(&remote.reply);
+    lisp_app_command_t control = lisp_runtime_app_control(remote.source, remote.length);
+    if (control != LISP_APP_COMMAND_NONE || lisp_runtime_app_active()) {
+        remote.status = ESP_OK;
+        const char *text = control == LISP_APP_COMMAND_OK ? "Application control accepted\n"
+                           : control == LISP_APP_COMMAND_INVALID
+                               ? "ERROR: use :key X with an active app\n"
+                               : "ERROR: application owns screen; use :stop or :key X\n";
+        repl_remote_reply_append(&remote.reply, text, strlen(text));
+        remote_complete(); /* Immediate control ACK, independent of app lifetime. */
+        return;
+    }
     if (!lisp_runtime_ready() || lisp_runtime_busy() || frontend.ready || frontend.length != 0) {
         remote.status = ESP_ERR_INVALID_STATE;
         remote_complete();
@@ -262,7 +293,8 @@ static void remote_poll(void)
 #if CONFIG_WIFI_REPL_ENABLE
 static void report_connection(bool *reported)
 {
-    if (*reported || remote_active || lisp_runtime_busy() || frontend.length != 0 || frontend.ready)
+    if (*reported || remote_active || lisp_runtime_busy() || lisp_runtime_app_active() ||
+        frontend.length != 0 || frontend.ready)
         return;
     wifi_link_snapshot_t link;
     if (!repl_tcp_is_healthy() || !wifi_service_get_link_snapshot(&link) || link.phase != WIFI_LINK_ONLINE)
@@ -305,6 +337,11 @@ static void repl_task(void *argument)
     }
     ESP_LOGI(TAG, "init_stage=%s align_mod8=%u selftest=PASS; ready for input", lisp_runtime_init_stage(),
              (unsigned)((uintptr_t)runtime_memory % 8));
+#if CONFIG_LISP_APP_ENABLE
+    lisp_app_display_t app_display;
+    if (!board_display_app_backend(&app_display) || !lisp_runtime_app_attach(&app_display))
+        ESP_LOGE(TAG, "Application canvas unavailable; keeping the terminal REPL");
+#endif
     char banner[REPL_BOOT_INFO_CAPACITY];
     bool wifi = false;
 #if CONFIG_WIFI_REPL_ENABLE
@@ -339,10 +376,15 @@ static void repl_task(void *argument)
 #endif
             {
                 repl_frontend_finish(&frontend);
-                if (!lisp_runtime_reset())
-                    message("ERROR: runtime reset failed\n");
-                message("ERROR: UART input lost; RAM definitions cleared\n");
-                prompt();
+                if (lisp_runtime_app_active()) {
+                    lisp_runtime_app_stop();
+                    message("ERROR: UART input lost; stopping application\n");
+                } else {
+                    if (!lisp_runtime_reset())
+                        message("ERROR: runtime reset failed\n");
+                    message("ERROR: UART input lost; RAM definitions cleared\n");
+                    prompt();
+                }
             }
         } else {
             uint8_t bytes[64];
@@ -351,14 +393,17 @@ static void repl_task(void *argument)
                 input_byte(bytes[i]);
         }
         bool was_busy = lisp_runtime_busy();
+        bool app_was_active = lisp_runtime_app_active();
         lisp_runtime_step((uint64_t)(esp_timer_get_time() / 1000));
+        if (app_was_active && !lisp_runtime_app_active())
+            (void)uart_flush_input(UART_NUM_0); /* Buffered app keys must not become terminal source. */
 #if CONFIG_WIFI_REPL_ENABLE
         if (remote_active && !lisp_runtime_busy()) {
             remote_complete();
             finish();
         } else
 #endif
-            if (was_busy && !lisp_runtime_busy())
+            if ((was_busy && !lisp_runtime_busy()) || (app_was_active && !lisp_runtime_app_active()))
             finish();
         (void)board_display_terminal_update(&frontend.terminal);
         atomic_store(&last_owner_tick, lisp_runtime_ready() && lisp_runtime_selftest_passed()

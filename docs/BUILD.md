@@ -1,6 +1,18 @@
 # 构建、测试与工具链
 
-## 当前：0.3.0单槽USB（factory，已部署）
+## 当前0.4.0：正式USB应用层配置已部署
+
+准确批准后，`.local/build-lisp-app-candidate` / `PROJECT_VER=0.4.0-lisp-app-usb` / `LISP_APP_ENABLE=y`的989280字节镜像唯一USB写入54.1秒；沿用0.3.0表/旧引导，无表/NVS/旧控制/eFuse变化或重试/恢复。新同板/8字段/实际完整0.3.0基线及写后完整4MiB/补集保护通过，之后180.057秒正常启动只读通过；实际probe/PSRAM128KiB六模式/ILI9341帧/心跳/联网健康正常。实际应用切换/绘图/退出和新UART/TCP交互仍未测试，详见 [LISP_APPS.md](LISP_APPS.md)。
+
+全部写权限耗尽，UART释放；当前私有参考`.local/flash/lisp-app-0.4.0/post-protection/current-0.4.0-expected.bin`为重建/实际SDK匹配，非新双读。冻结候选PENDING/0次是原始历史，执行记录另存，不改任何旧档案。构建不是写入/交互许可，不覆盖已部署构建。
+
+## 历史开发阶段（0.4.0-lisp-app-dev，后来按正式候选部署）
+
+追加`tests/sdkconfig.lisp-app.defaults`启用默认关闭的`LISP_APP_ENABLE`；两个固定PSRAM画布共300KiB，正常退出恢复终端。两主机模型各128项、28Python/4历史mock、六配置编译与格式/纯逻辑分析通过。新目录`.local/build-lisp-app-{full,uart,disabled,off,scan,legacy}`，不覆盖旧部署构建；full开发镜像989280字节，非冻结候选。详细命令及限制见 [LISP_APPS.md](LISP_APPS.md)。
+
+该开发阶段没有设备访问或写入授权；后续准确批准的正式USB写入及只读启动见顶节。根默认版本仍0.3.0，开发配置显式指定`PROJECT_VER=0.4.0-lisp-app-dev`，板上正式配置为0.4.0-lisp-app-usb；不要仅凭版本标签判断源码/设备是否匹配。
+
+## 历史0.3.0：首次单槽USB迁移（应用已被0.4.0替换）
 
 默认 `SINGLE_APP_USB_ENABLE=y`／`partitions.single.csv`，factory2.625MiB；网络仅保留原TCP REPL，OTA/HTTPS/镜像回退关闭。新独立 build-single-usb-{full,off,scan,uart} 和显式legacy回归均通过，主机两模型各96项、28Python/4历史mock通过。完整构建命令、约1.69MiB余量及首次迁移/恢复边界见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。
 
@@ -20,7 +32,7 @@ REPL去除证书/token，改TCP2323/nc；`WIFI_REPL_ENABLE`默认n，依赖Lisp+
 
 ## 当前部署与构建配置
 
-截至2026-11-10，设备实际运行 **`0.3.0-single-usb` / factory 0x10000**；应用＋表各一次USB写入，180.203秒正常启动只读观察通过，无UART/TCP测试输入。单槽没有OTA VALID状态或HTTPS服务；本版LCD未独立目视，完整证据见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。全部写入许可已消耗，构建不是再次烧录授权。
+截至2026-11-10，设备实际运行 **`0.4.0-lisp-app-usb` / factory 0x10000**；应用唯一USB写入54.1秒，180.057秒正常启动只读通过，无UART/TCP测试输入。单槽没有OTA VALID状态或HTTPS服务；本版LCD未独立目视、应用切屏未交互验收，见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。全部写入许可已消耗，构建不是再次烧录授权。
 
 根 `CMakeLists.txt` 的默认 `PROJECT_VER` 已改为 **0.3.0-single-usb**；单槽USB模式默认启用，可选PSRAM/LCD/Wi-Fi/Lisp仍默认关闭，OTA仅显式历史回归。默认构建不等于上板配置，当前设备只接受经新准确批准的USB固件更新，历史双槽OTA不再可用。新增 `LISP_REPL_ENABLE` 也默认关闭；LispBM0.2.0曾初始化失败回退；0.2.1修复后实机启动/UART已通过，见 [LISP_REPL.md](LISP_REPL.md)。
 
@@ -32,7 +44,8 @@ REPL去除证书/token，改TCP2323/nc；`WIFI_REPL_ENABLE`默认n，依赖Lisp+
 | 历史 HTTPS REPL＋OTA | `.local/build-wifi-repl-candidate` | 0.2.2、已被新B替换，冻结保留 |
 | 历史 TCP REPL＋OTA | `.local/build-tcp-repl-candidate` | 0.2.3、原A已部分覆盖，不再备用 |
 | 历史安静启动＋TCP/OTA | `.local/build-boot-info-candidate` | 0.2.4、旧B字节仍保留但不再有独立槽；冻结不改 |
-| 当前单槽USB＋TCP REPL | `.local/build-single-usb-full` | 0.3.0、factory2.625MiB，USB更新，无HTTPS/镜像回退；IP提示/probe静默 |
+| 历史单槽USB迁移 | `.local/build-single-usb-full` | 0.3.0、应用已替换；表/引导/档案保留 |
+| 当前单槽USB＋TCP＋Lisp应用层 | `.local/build-lisp-app-candidate` | 0.4.0、factory2.625MiB，明确APP=y；唯一USB＋只读启动通过，应用交互未测 |
 | 默认关闭回归 | `.local/build-ota-off` | 不链接凭据/OTA 私密输入，不启动 Wi-Fi/HTTPS |
 | 扫描回归 | `.local/build-ota-scan` | 扫描，无嵌入 Wi-Fi/OTA 凭据及 HTTPS 入口 |
 
@@ -89,11 +102,11 @@ idf.py -B .local/build-default-example \
 idf.py -B .local/build-default-example size
 ```
 
-产物为该目录的 `wrover_radio_node.bin`。默认配置生成标准 single-app 表，应用容量 1 MiB；**它不是设备当前表**。已部署 OTA 配置使用 `partitions.ota.csv`，A/B 各 `0x150000` / 1344 KiB，详见 [OTA.md](OTA.md)。不把默认生成的表覆盖实物表。
+产物为该目录的 `wrover_radio_node.bin`。默认配置生成`partitions.single.csv`，单factory容量2.625MiB，与当前单槽布局一致；但默认关闭功能的应用**不是板上full配置**，不因表一致就获得写入许可。旧`partitions.ota.csv`/A、B各0x150000只属显式历史回归，不能覆盖当前实物表。
 
 **不执行构建输出建议的 `idf.py flash` / `@flash_args`，不整片擦除。** 本次特定引导/表迁移已获准且已执行，不能作为未来通用 flash 许可。写入和恢复见 [FLASH_AND_RECOVERY.md](FLASH_AND_RECOVERY.md)。
 
-## 当前 OTA 配置与私有输入
+## 历史双槽OTA配置与私有输入（当前0.4.0不使用）
 
 OTA 配置按顺序组合：
 

@@ -8,6 +8,15 @@ menu "LispBM REPL"
             Lisp state and the upstream image are RAM-only. No NVS, filesystem,
             Bluetooth, DSP or GPIO extensions. Ctrl-C resets the Lisp environment.
             Requires a separately installed pinned LispBM checkout (GPLv3+).
+    config LISP_APP_ENABLE
+        bool "Enable one foreground Lisp application with a full-screen canvas"
+        depends on LISP_REPL_ENABLE
+        default n
+        help
+            Opt-in, RAM-only callbacks and two fixed PSRAM RGB565 canvases
+            (300 KiB). Original Lisp and LCD tasks retain sole ownership.
+            UART Ctrl-C stops the app; TCP :stop and :key X remain available.
+            No filesystem, persistent loader, GPIO, Bluetooth or DSP.
     config WIFI_REPL_ENABLE
         bool "Enable plain TCP REPL on port2323 (no TLS/token)"
         depends on LISP_REPL_ENABLE && WIFI_SERVICE_CONNECT_ENABLE
