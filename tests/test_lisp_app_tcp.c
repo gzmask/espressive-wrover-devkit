@@ -25,7 +25,29 @@ static bool request_pending, result_pending;
 static char request[1024];
 static repl_remote_reply_t reply;
 static bool capturing;
-static atomic_bool owner_ready, app_active, halt;
+static atomic_bool owner_ready, app_active, halt, load_active, finish_download;
+static lisp_app_url_slot_t url_slot;
+static char url_source[LISP_APP_URL_SOURCE_CAPACITY];
+static bool url_request(void *user, const char *url, size_t length)
+{
+    (void)user;
+    return lisp_app_url_slot_request(&url_slot, url, length);
+}
+static lisp_app_url_phase_t url_poll(void *user, const char **source, size_t *length)
+{
+    (void)user;
+    return lisp_app_url_slot_poll(&url_slot, source, length);
+}
+static void url_cancel(void *user)
+{
+    (void)user;
+    lisp_app_url_slot_cancel(&url_slot);
+}
+static void url_release(void *user)
+{
+    (void)user;
+    lisp_app_url_slot_release(&url_slot);
+}
 static atomic_uint app_frames;
 static uint16_t pixels[2][LISP_APP_PIXELS];
 static lisp_app_canvas_t canvas;
@@ -77,6 +99,9 @@ static void *owner(void *unused)
     assert(lisp_app_canvas_init(&canvas, pixels[0], pixels[1], LISP_APP_PIXELS));
     lisp_app_display_t backend = {&canvas, begin, draw, publish, activate, restore, state};
     assert(lisp_runtime_app_attach(&backend));
+    assert(lisp_app_url_slot_init(&url_slot, url_source, sizeof(url_source)));
+    lisp_app_url_backend_t url_backend = {NULL, url_request, url_poll, url_cancel, url_release};
+    assert(lisp_runtime_load_attach(&url_backend));
     atomic_store(&owner_ready, true);
     bool inflight = false;
     for (uint64_t now = 0; !atomic_load(&halt); now += 5) {
@@ -93,7 +118,12 @@ static void *owner(void *unused)
             repl_remote_reply_init(&reply);
             inflight = true;
             lisp_app_command_t control = lisp_runtime_app_control(source, strlen(source));
-            if (control == LISP_APP_COMMAND_OK)
+            char load_reply[128];
+            if (lisp_runtime_load_control(source, strlen(source), load_reply, sizeof(load_reply)))
+                append(load_reply);
+            else if (lisp_runtime_load_active())
+                append("ERROR: URL load active; use :load-status or :load-cancel\n");
+            else if (control == LISP_APP_COMMAND_OK)
                 append("Application control accepted\n");
             else if (control == LISP_APP_COMMAND_INVALID)
                 append("ERROR: invalid application control\n");
@@ -104,7 +134,14 @@ static void *owner(void *unused)
                 assert(lisp_runtime_submit(source, strlen(source), now));
             }
         }
+        if (atomic_exchange(&finish_download, false)) {
+            assert(url_slot.phase == LISP_APP_URL_FETCHING);
+            memset(url_source, ' ', 2048);
+            strcpy(url_source + 2048, "(define url-twice (lambda (x) (* x 2)))");
+            lisp_app_url_slot_finish(&url_slot, true, strlen(url_source));
+        }
         lisp_runtime_step(now);
+        atomic_store(&load_active, lisp_runtime_load_active());
         if (now % 200 == 0) {
             lisp_app_frame_t frame;
             assert(lisp_app_canvas_acquire(&canvas, &frame));
@@ -124,7 +161,7 @@ static void *owner(void *unused)
         }
         pause_tick();
     }
-    assert(!lisp_runtime_app_active());
+    assert(!lisp_runtime_app_active() && !lisp_runtime_load_active());
     lisp_test_free(storage, bytes);
     return NULL;
 }
@@ -223,9 +260,35 @@ int main(void)
     command(pair[0], ":stop\n", "control accepted");
     wait_idle();
     command(pair[0], "(twice 21)\n", "=> 42");
+    command(pair[0],
+            "(app-run (list (lambda () (app-load-url \"https://example.com/a\")) "
+            "(lambda (e) t) (lambda () t)))\n",
+            "=> t");
+    wait_idle();
+    command(pair[0], ":load-status\n", "idle"); /* Callbacks cannot start a network load. */
+    const char *load = "(app-load-url \"https://example.com/app.lisp\")\n";
+    command(pair[0], load, "=> t");
+    assert(atomic_load(&load_active));
+    command(pair[0], ":load-status\n", "downloading");
+    command(pair[0], "(define forbidden 9)\n", "URL load active");
+    end_session(pair, session_thread); /* EOF does not cancel the board's request. */
+    atomic_store(&finish_download, true);
+    for (unsigned i = 0; i < 4000 && atomic_load(&load_active); i++)
+        pause_tick();
+    assert(!atomic_load(&load_active));
+    start_session(pair, &session_thread);
+    command(pair[0], ":load-status\n", "loaded");
+    command(pair[0], "(url-twice 21)\n", "=> 42");
+    command(pair[0], "forbidden\n", "ERROR:");
+    command(pair[0], load, "=> t");
+    command(pair[0], ":load-cancel\n", "preserved");
+    atomic_store(&finish_download, true); /* Late completion discarded, not evaluated. */
+    struct timespec settle = {0, 10000000};
+    nanosleep(&settle, NULL);
+    command(pair[0], "(twice 21)\n", "=> 42");
     end_session(pair, session_thread);
     atomic_store(&halt, true);
     assert(pthread_join(owner_thread, NULL) == 0);
-    puts("PASS: production socket session + LispBM + host owner mailbox; async ACK/key/stop/EOF/reconnect");
+    puts("PASS: production session + LispBM + host mailbox; app + URL ACK/status/cancel/EOF/reconnect");
     return 0;
 }

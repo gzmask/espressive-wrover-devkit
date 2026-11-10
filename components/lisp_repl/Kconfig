@@ -17,6 +17,18 @@ menu "LispBM REPL"
             (300 KiB). Original Lisp and LCD tasks retain sole ownership.
             UART Ctrl-C stops the app; TCP :stop and :key X remain available.
             No filesystem, persistent loader, GPIO, Bluetooth or DSP.
+    config LISP_APP_URL_ENABLE
+        bool "Enable HTTPS URL to RAM application loading"
+        depends on LISP_APP_ENABLE && WIFI_SERVICE_CONNECT_ENABLE
+        select ESP_HTTP_CLIENT_ENABLE_HTTPS
+        select MBEDTLS_CERTIFICATE_BUNDLE
+        select MBEDTLS_HAVE_TIME_DATE
+        default n
+        help
+            Explicit app-load-url downloads up to 32 KiB ASCII source to RAM.
+            CA/hostname/date validation; request-triggered SNTP if clock unset.
+            No redirect, HTTP fallback, automatic app-run, Flash/NVS writes,
+            persistent installation, dependency manager or boot-time requests.
     config WIFI_REPL_ENABLE
         bool "Enable plain TCP REPL on port2323 (no TLS/token)"
         depends on LISP_REPL_ENABLE && WIFI_SERVICE_CONNECT_ENABLE

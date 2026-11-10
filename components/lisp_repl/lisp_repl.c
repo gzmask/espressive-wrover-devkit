@@ -16,6 +16,9 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "lisp_runtime.h"
+#if CONFIG_LISP_APP_URL_ENABLE
+#include "lisp_app_url_service.h"
+#endif
 #include "repl_boot_info.h"
 #include "repl_frontend.h"
 #include <stdatomic.h>
@@ -113,6 +116,10 @@ static const char help[] = "LispBM RAM-only REPL; UART0 115200\n"
                            "Ctrl-C/:reset forget ALL RAM definitions.\n"
                            ":help help; :clear clears LCD output.\n"
                            "No save, Bluetooth or DSP.\n"
+#if CONFIG_LISP_APP_URL_ENABLE
+                           "URL: (app-load-url \"https://host/app.lisp\"); RAM only.\n"
+                           ":load-status / :load-cancel; loaded apps do not auto-run.\n"
+#endif
 #if CONFIG_LISP_APP_ENABLE
                            "Apps: (app-run (list init step exit)); step event -1=tick.\n"
                            "App UART Ctrl-C stops.\n"
@@ -188,7 +195,11 @@ static void input_byte(uint8_t byte)
     repl_input_event_t event = repl_frontend_feed(&frontend, byte);
     if (event == REPL_CANCELLED) {
         serial_write("^C\n", 3);
-        if (lisp_runtime_reset())
+        if (lisp_runtime_load_active()) {
+            char reply[128];
+            (void)lisp_runtime_load_control(":load-cancel", 12, reply, sizeof(reply));
+            message(reply);
+        } else if (lisp_runtime_reset())
             message("RAM definitions cleared\n");
         else
             message("ERROR: runtime reset failed\n");
@@ -199,7 +210,14 @@ static void input_byte(uint8_t byte)
         lcd_terminal_input(&frontend.terminal, "error> ", "input full; Ctrl-U/Ctrl-C", 24);
     } else if (event == REPL_READY) {
         serial_write("\n", 1);
-        if (!strcmp(frontend.source, ":help")) {
+        char reply[128];
+        if (lisp_runtime_load_control(frontend.source, frontend.length, reply, sizeof(reply))) {
+            message(reply);
+            finish();
+        } else if (lisp_runtime_load_active()) {
+            message("ERROR: URL load active; use :load-status or :load-cancel\n");
+            finish();
+        } else if (!strcmp(frontend.source, ":help")) {
             message(help);
             finish();
         } else if (!strcmp(frontend.source, ":clear")) {
@@ -245,6 +263,20 @@ static void remote_poll(void)
     if (xQueueReceive(remote_commands, &signal, 0) != pdTRUE)
         return;
     repl_remote_reply_init(&remote.reply);
+    char load_reply[128];
+    if (lisp_runtime_load_control(remote.source, remote.length, load_reply, sizeof(load_reply))) {
+        remote.status = ESP_OK;
+        repl_remote_reply_append(&remote.reply, load_reply, strlen(load_reply));
+        remote_complete();
+        return;
+    }
+    if (lisp_runtime_load_active()) {
+        remote.status = ESP_OK;
+        static const char loading[] = "ERROR: URL load active; use :load-status or :load-cancel\n";
+        repl_remote_reply_append(&remote.reply, loading, sizeof(loading) - 1);
+        remote_complete();
+        return;
+    }
     lisp_app_command_t control = lisp_runtime_app_control(remote.source, remote.length);
     if (control != LISP_APP_COMMAND_NONE || lisp_runtime_app_active()) {
         remote.status = ESP_OK;
@@ -294,7 +326,7 @@ static void remote_poll(void)
 static void report_connection(bool *reported)
 {
     if (*reported || remote_active || lisp_runtime_busy() || lisp_runtime_app_active() ||
-        frontend.length != 0 || frontend.ready)
+        lisp_runtime_load_active() || frontend.length != 0 || frontend.ready)
         return;
     wifi_link_snapshot_t link;
     if (!repl_tcp_is_healthy() || !wifi_service_get_link_snapshot(&link) || link.phase != WIFI_LINK_ONLINE)
@@ -341,6 +373,11 @@ static void repl_task(void *argument)
     lisp_app_display_t app_display;
     if (!board_display_app_backend(&app_display) || !lisp_runtime_app_attach(&app_display))
         ESP_LOGE(TAG, "Application canvas unavailable; keeping the terminal REPL");
+#endif
+#if CONFIG_LISP_APP_URL_ENABLE
+    lisp_app_url_backend_t url_backend;
+    if (!lisp_app_url_service_start(&url_backend) || !lisp_runtime_load_attach(&url_backend))
+        ESP_LOGE(TAG, "URL loader unavailable; keeping the terminal REPL, no startup retry");
 #endif
     char banner[REPL_BOOT_INFO_CAPACITY];
     bool wifi = false;
@@ -394,16 +431,24 @@ static void repl_task(void *argument)
         }
         bool was_busy = lisp_runtime_busy();
         bool app_was_active = lisp_runtime_app_active();
+        bool load_was_active = lisp_runtime_load_active();
         lisp_runtime_step((uint64_t)(esp_timer_get_time() / 1000));
-        if (app_was_active && !lisp_runtime_app_active())
-            (void)uart_flush_input(UART_NUM_0); /* Buffered app keys must not become terminal source. */
+        if ((app_was_active && !lisp_runtime_app_active()) ||
+            (load_was_active && !lisp_runtime_load_active()))
+            (void)uart_flush_input(UART_NUM_0); /* Buffered foreground input must not become new source. */
+        if (load_was_active && !lisp_runtime_load_active()) {
+            message("URL load: ");
+            message(lisp_runtime_load_status());
+            message("\n");
+        }
 #if CONFIG_WIFI_REPL_ENABLE
         if (remote_active && !lisp_runtime_busy()) {
             remote_complete();
             finish();
         } else
 #endif
-            if ((was_busy && !lisp_runtime_busy()) || (app_was_active && !lisp_runtime_app_active()))
+            if ((was_busy && !lisp_runtime_busy()) || (app_was_active && !lisp_runtime_app_active()) ||
+                (load_was_active && !lisp_runtime_load_active()))
             finish();
         (void)board_display_terminal_update(&frontend.terminal);
         atomic_store(&last_owner_tick, lisp_runtime_ready() && lisp_runtime_selftest_passed()

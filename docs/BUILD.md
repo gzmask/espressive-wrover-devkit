@@ -1,6 +1,18 @@
 # 构建、测试与工具链
 
-## 当前0.4.0：正式USB应用层配置已部署
+## 当前0.5.0：正式URL loader配置已部署
+
+正式目录`.local/build-app-url-candidate`，显式`PROJECT_VER=0.5.0-app-url-usb`，APP/URL/TCP/Wi-Fi及CA/主机名/证书日期检查启用；1194400字节镜像SHA256 `5a8bb890f611dfb274f9b4a5d284654ace2307db994483652c9acdb287b57eea`，准确批准后唯一USB应用写入66.2秒。147源码构建前后/冻结归档一致，SDK头/footer/ELF和配置通过；两主机模型149/149、28Python/4历史mock、六回归配置及正式构建通过。
+
+新同板/8字段/实际完整0.4.0基线及旧引导、写后全部补集/完整4MiB保护通过，之后180.101秒只读启动健康。未发送URL/demo命令，真实HTTPS加载未测；全部写权限耗尽，UART释放。当前参考`app-url-0.5.0/post-protection/current-0.5.0-expected.bin`为重建/实际SDK匹配，非新双读。冻结PENDING/0次保留历史，实际execution-*另存，详见 [APP_URL_LOADING.md](APP_URL_LOADING.md)。
+
+## 历史URL加载开发版（0.5.0-app-url-dev，后来正式候选已部署）
+
+`LISP_APP_URL_ENABLE=n`默认关闭，追加`tests/sdkconfig.app-url.defaults`启用。新独立`.local/build-app-url-{full,uart,disabled,off,scan,legacy}`六配置编译通过；full/uart启用URL，另外四项关闭，legacy显式历史双槽。两主机模型各149项、28Python/4历史mock通过；不改0.4.0候选/任何冻结目录，没有设备访问。精确命令及TLS/时钟要求见 [APP_URL_LOADING.md](APP_URL_LOADING.md)。
+
+该离线开发阶段板上仍0.4.0、无URL接口；后续正式0.5.0部署见顶节。根默认版本仍0.3.0。构建不是新hash的写入/交互授权，不执行工具输出建议的flash命令。
+
+## 历史0.4.0：正式USB应用层配置（已被0.5.0替换）
 
 准确批准后，`.local/build-lisp-app-candidate` / `PROJECT_VER=0.4.0-lisp-app-usb` / `LISP_APP_ENABLE=y`的989280字节镜像唯一USB写入54.1秒；沿用0.3.0表/旧引导，无表/NVS/旧控制/eFuse变化或重试/恢复。新同板/8字段/实际完整0.3.0基线及写后完整4MiB/补集保护通过，之后180.057秒正常启动只读通过；实际probe/PSRAM128KiB六模式/ILI9341帧/心跳/联网健康正常。实际应用切换/绘图/退出和新UART/TCP交互仍未测试，详见 [LISP_APPS.md](LISP_APPS.md)。
 
@@ -32,7 +44,7 @@ REPL去除证书/token，改TCP2323/nc；`WIFI_REPL_ENABLE`默认n，依赖Lisp+
 
 ## 当前部署与构建配置
 
-截至2026-11-10，设备实际运行 **`0.4.0-lisp-app-usb` / factory 0x10000**；应用唯一USB写入54.1秒，180.057秒正常启动只读通过，无UART/TCP测试输入。单槽没有OTA VALID状态或HTTPS服务；本版LCD未独立目视、应用切屏未交互验收，见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。全部写入许可已消耗，构建不是再次烧录授权。
+截至2026-11-10，设备实际运行 **`0.5.0-app-url-usb` / factory 0x10000**；应用唯一USB写入66.2秒，180.101秒正常启动只读通过，无UART/TCP/URL/demo测试输入。单槽没有OTA VALID状态或HTTPS服务；本版LCD未独立目视、应用切屏未交互验收，见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。全部写入许可已消耗，构建不是再次烧录授权。
 
 根 `CMakeLists.txt` 的默认 `PROJECT_VER` 已改为 **0.3.0-single-usb**；单槽USB模式默认启用，可选PSRAM/LCD/Wi-Fi/Lisp仍默认关闭，OTA仅显式历史回归。默认构建不等于上板配置，当前设备只接受经新准确批准的USB固件更新，历史双槽OTA不再可用。新增 `LISP_REPL_ENABLE` 也默认关闭；LispBM0.2.0曾初始化失败回退；0.2.1修复后实机启动/UART已通过，见 [LISP_REPL.md](LISP_REPL.md)。
 
@@ -45,7 +57,8 @@ REPL去除证书/token，改TCP2323/nc；`WIFI_REPL_ENABLE`默认n，依赖Lisp+
 | 历史 TCP REPL＋OTA | `.local/build-tcp-repl-candidate` | 0.2.3、原A已部分覆盖，不再备用 |
 | 历史安静启动＋TCP/OTA | `.local/build-boot-info-candidate` | 0.2.4、旧B字节仍保留但不再有独立槽；冻结不改 |
 | 历史单槽USB迁移 | `.local/build-single-usb-full` | 0.3.0、应用已替换；表/引导/档案保留 |
-| 当前单槽USB＋TCP＋Lisp应用层 | `.local/build-lisp-app-candidate` | 0.4.0、factory2.625MiB，明确APP=y；唯一USB＋只读启动通过，应用交互未测 |
+| 历史单槽USB＋TCP＋Lisp应用层 | `.local/build-lisp-app-candidate` | 0.4.0、已被0.5.0替换，冻结不改 |
+| 当前单槽USB＋TCP＋应用/URL loader | `.local/build-app-url-candidate` | 0.5.0、明确APP/URL=y；唯一USB＋只读启动通过，URL交互未测 |
 | 默认关闭回归 | `.local/build-ota-off` | 不链接凭据/OTA 私密输入，不启动 Wi-Fi/HTTPS |
 | 扫描回归 | `.local/build-ota-scan` | 扫描，无嵌入 Wi-Fi/OTA 凭据及 HTTPS 入口 |
 
@@ -106,7 +119,7 @@ idf.py -B .local/build-default-example size
 
 **不执行构建输出建议的 `idf.py flash` / `@flash_args`，不整片擦除。** 本次特定引导/表迁移已获准且已执行，不能作为未来通用 flash 许可。写入和恢复见 [FLASH_AND_RECOVERY.md](FLASH_AND_RECOVERY.md)。
 
-## 历史双槽OTA配置与私有输入（当前0.4.0不使用）
+## 历史双槽OTA配置与私有输入（当前0.5.0不使用）
 
 OTA 配置按顺序组合：
 

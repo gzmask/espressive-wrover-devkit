@@ -1,4 +1,8 @@
-# LispBM 前台应用层（0.4.0 factory已部署，切屏待交互验收）
+# LispBM 前台应用层（当前0.5.0 factory，切屏/URL待交互验收）
+
+0.5.0已准确批准并唯一USB应用写入66.2秒，应用/FFpadding/全部补集/8字段/实际完整4MiB保护通过；之后180.101秒只读启动健康，无URL loader启动错误、无UART/TCP/URL/demo命令。0.4.0的RAM demo/定义已随复位清除，未重载，实际切屏/退出及LCD目视仍未验收。当前写入与恢复边界见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)，URL用法见下节。
+
+## 历史0.4.0应用层部署（已被0.5.0替换）
 
 准确批准后，**0.4.0-lisp-app-usb / factory**／989280字节／SHA256 `564c97b824af015d0b475399ce75abd192aa103f37f9a3a30c5f089bf3b68d0b`，在`[0x10000,0x102000)`/242扇区一次USB写入54.1秒。沿用0.3.0表/旧引导，NVS/reserved/free/旧数据及全部范围外字节不变，无OTA/重试/恢复。写前新同板/8字段/实际完整0.3.0基线与旧引导，写后应用/FFpadding/全部补集/8字段及实际完整4MiB均通过。
 
@@ -8,11 +12,15 @@
 
 源码默认`LISP_APP_ENABLE=n`，本次板上full明确启用y；追加`tests/sdkconfig.lisp-app.defaults`提供画布。根默认版本仍0.3.0，正式候选显式指定`PROJECT_VER=0.4.0-lisp-app-usb`，开发版`0.4.0-lisp-app-dev`不是准确批准镜像。
 
-## 实际demo运行（用户明确请求，保持画面）
+## URL加载接口（0.5.0已部署，真实加载未测）
+
+0.5.0启用`app-load-url`，HTTPS下载最多32KiB到RAM，由原owner加载定义；`:load-status`/`:load-cancel`可查/取消，成功后仍显式`app-run`。不写Flash/NVS、不自动run/重定向/重试；仅正常启动已验收，未实际请求URL。以下1023字节限制描述普通REPL，不限制独立URL加载器。完整接口、错误/取消和信任边界见 [APP_URL_LOADING.md](APP_URL_LOADING.md)。
+
+## 历史0.4.0实际demo运行（当时保持画面，0.5.0复位已清除）
 
 用户“运行一下 demo”后，通过TCP一次加载匹配冻结的658字节定义、一次`(app-run demo)`，9秒后普通nil查询被“application owns screen”拒绝，确认应用仍占用前台；随后TCP关闭，未发送q/:stop，demo保持运行。没有USB、串口打开、复位、Flash/NVS/eFuse操作，也没有通用交互回归。实际显示可见性/颜色/FPS和退出恢复仍未验收；此处是逻辑应用模式确认，不冒充助手目视。当前记录另存`.local/flash/lisp-app-0.4.0/demo-run-tcp/summary.json`，不修改原固件冻结/只读验收记录。
 
-你看完可在UART按`q`，或在TCP输入`:key q`请求退出；本次助手未自动退出。
+当时可在UART按`q`或TCP输入`:key q`退出；助手没有自动退出。后续0.5.0部署的ROM/正常启动复位已清掉该RAM demo，此历史运行不代表当前仍在运行。
 
 ## 范围
 
@@ -96,7 +104,7 @@ LCD沿用固定ILI9341、方向、10MHz SPI及200ms周期，tick目标约5Hz，�
 
 [`examples/lisp/demo.lisp`](../examples/lisp/demo.lisp)是658字节、单个`define`表单（注释放在已打开的表单内部，避免REPL先提交独立注释行），未自动运行。它画矩形、线和文字；普通按键显示反馈，`q`返回终端。
 
-第一版仍使用现有REPL的续行输入加载这个定义，完成后单独提交`(app-run demo)`。**没有`:load`命令，也没有电脑端文件上传器**。输入上限仍1023字节；不要粘贴多条独立提交期待自动排队。完整文件/RAM loader为后续工作，不读写当前Flash数据分区。
+可用现有REPL续行输入加载此定义，完成后单独提交`(app-run demo)`；普通输入仍限1023字节，不要粘贴多条独立提交期待自动排队。0.5.0另提供最多32KiB的HTTPS URL→RAM loader，见上节；没有`:load`本地文件命令或电脑端文件上传器，不读写Flash数据分区。
 
 ## 离线构建与测试
 
@@ -123,4 +131,4 @@ ctest --test-dir .local/host-build-lisp-app --output-on-failure
 
 **28 Python、4历史OTA mock、六配置编译、clang-format与四个纯逻辑文件Clang分析通过。** 六配置为单槽应用TCP、应用UART、应用关闭UART、全部功能关闭、LCD扫描，以及显式历史双槽TCP/OTA（应用关闭）。保留上游既有unused/longjmp警告和word32模型转换警告。完整开发镜像989280字节，余1763232字节；非冻结候选，版本/容量不是写入许可。
 
-USB应用更新及正常启动/probe/健康已实机通过，但实际应用切换、UART/TCP控制、PSRAM画布压力、输入边界及LCD目视/FPS/颜色/撕裂均 **NOT TESTED**。旧版本交互不能挪作本应用层证据。镜像批准不包含交互；后续需明确许可。全部写权限耗尽，新固件须新准确hash/factory实际范围批准＋新同板/8字段/当前0.4.0实际完整4MiB基线＋新marker单次USB，不重试/恢复/表/引导/NVS/旧数据变化或commit/push。
+USB应用更新及正常启动/probe/健康已实机通过，但实际应用切换、UART/TCP控制、PSRAM画布压力、输入边界及LCD目视/FPS/颜色/撕裂均 **NOT TESTED**。旧版本交互不能挪作本应用层证据。镜像批准不包含交互；后续需明确许可。全部写权限耗尽，新固件须新准确hash/factory实际范围批准＋新同板/8字段/当前0.5.0实际完整4MiB基线＋新marker单次USB，不重试/恢复/表/引导/NVS/旧数据变化或commit/push。

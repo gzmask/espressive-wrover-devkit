@@ -6,7 +6,7 @@
 
 ## 当前设备
 
-开发板为ESP-WROVER-KIT v4.1 / 经典ESP32。当前运行 `0.3.0-single-usb` / factory `0x10000`，2.625MiB应用分区，联网后健康记录正常；180.203秒只读启动、PSRAM/probe/LCD/TCP/IP提示通过，没有交互测试输入。LCD未独立目视，旧A/B不再定义为备用槽；旧B字节保留不等于回退能力。验收结果见 [测试结果](TEST_RESULTS.md)。源码默认版本和配置不等于当前上板配置。
+开发板为ESP-WROVER-KIT v4.1 / 经典ESP32。当前运行 `0.5.0-app-url-usb` / factory `0x10000`，2.625MiB应用分区；准确批准后唯一USB应用写入66.2秒，写前/后完整4MiB/全部补集/8安全字段保护通过，之后180.101秒只读启动、PSRAM/probe/LCD/TCP/IP提示和联网后健康通过，没有UART/TCP/URL/demo输入。全部Flash/security核验在最终启动前，之后仅UART采集及本地整理。URL loader配置启用，但真实HTTPS加载未交互验收；全部新旧写权限耗尽，UART释放，无后台监控。LCD未独立目视，旧A/B不再定义为备用槽；旧B字节保留不等于回退能力。验收结果见 [测试结果](TEST_RESULTS.md)。源码默认版本和配置不等于当前上板配置。
 
 - 此前的应用、引导、分区表及 OTA 控制区写入授权已全部消耗。新构建、提交代码或发布仓库都不是再次写入设备的许可。
 - 每次新刷写须重新批准准确镜像SHA-256、factory地址、写入/擦除范围和尝试次数；失败后不自动重试、重刷或恢复备份。
@@ -19,16 +19,16 @@
 
 本机详细交接与私有证据索引在被 Git 忽略的 `AGENTS.md` 和 `.local/` 中，不随公开仓库发布。公开说明不能替代实际设备的身份、状态和写入前核对。
 
-## 用户要求的无认证REPL（当前0.3.0保留）
+## 用户要求的无认证REPL（当前0.5.0保留）
 
-REPL改成明文TCP2323，无cert/token/登录，任何可达LAN客户端均能执行RAM Lisp，不具备保密性或身份校验，仅限可信局域网且不映射公网。不新增文件/系统/GPIO接口，也不是恶意程序安全沙箱。历史0.2.3只取消REPL认证、保留OTA保护；当前0.3.0已明确改为USB固件更新，不再提供OTA8443。全部写权限耗尽；不自动再刷。
+REPL改成明文TCP2323，无cert/token/登录，任何可达LAN客户端均能执行RAM Lisp，不具备保密性或身份校验，仅限可信局域网且不映射公网。不新增文件/系统/GPIO接口，也不是恶意程序安全沙箱。历史0.2.3只取消REPL认证、保留OTA保护；当前0.5.0沿用0.3.0的USB固件更新，不提供OTA8443。URL loader只是出站HTTPS→RAM，不是固件更新、代码签名或安全沙箱；校验证书链/主机名/日期，按明确请求限时SNTP校时（SNTP无认证），不写Flash/NVS，不自动run。全部写权限耗尽；不自动再刷。
 
 ## 凭据、产物与网络
 
 - Wi-Fi 凭据、OTA token、TLS 私钥由项目外或私有目录的文件在构建时嵌入，不把值写进源码、sdkconfig 或命令行。私有目录 0700，输入/日志 0600，冻结产物 0400。
 - 含上述秘密的 BIN/ELF/生成汇编/目标文件和 Flash 快照只能私有保存；不提交、推送、上传 Release 或分享。关闭 ccache，不自动重新生成正在使用的 key/token。
 - 原始 Flash、设备 IP/MAC、串口采集、用户照片和主机专用交接均不发布。测试里的假凭据和模拟地址不是实机秘密。
-- 当前REPL为TCP2323且无TLS/token，健康诊断在UART SDK日志；没有HTTP/HTTPS/status/health。历史HTTPS客户端必须校验证书且不用-k，其GET无需Bearer而OTA POST需Bearer；这些历史端点不能用于当前设备。完整Flash参考仍保留旧B中的历史token/TLS私钥，不能发布或声称它们已擦除。
+- 当前REPL为TCP2323且无TLS/token，健康诊断在UART SDK日志；没有HTTP/HTTPS服务器、status/health或OTA端点，出站HTTPS客户端仅用于明确URL加载请求。历史HTTPS客户端必须校验证书且不用-k，其GET无需Bearer而OTA POST需Bearer；这些历史端点不能用于当前设备。完整Flash参考仍保留旧B中的历史token/TLS私钥，不能发布或声称它们已擦除。
 - 该服务仅供可信局域网使用，不暴露公网；上传认证不是固件签名、secure boot 或任意断电安全保证。
 
 ## 发布前检查

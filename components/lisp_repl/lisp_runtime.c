@@ -1,5 +1,6 @@
 #include "lisp_runtime.h"
 #include "lisp_app_runtime.h"
+#include "lisp_load_runtime.h"
 #include "lispbm.h"
 
 /* Upstream lbm_image.h requires LispBM types to have been declared first. */
@@ -23,6 +24,7 @@ typedef struct {
     lbm_extension_t extensions[EXTENSIONS];
     uint32_t image[IMAGE_WORDS];
     char source[REPL_SOURCE_CAPACITY];
+    char loaded_source[LISP_APP_URL_SOURCE_CAPACITY];
     lbm_string_channel_state_t reader_state;
     lbm_char_channel_t reader;
 } runtime_storage_t;
@@ -103,6 +105,7 @@ static void done(eval_context_t *context)
         return;
     }
     lisp_app_runtime_launch_finished(!lbm_is_error(context->r));
+    lisp_load_runtime_finished(!lbm_is_error(context->r));
     if (output_dropped)
         emit("WARNING: print output truncated\n");
     emit(lbm_is_error(context->r) ? "ERROR: " : "=> ");
@@ -128,6 +131,7 @@ bool lisp_runtime_reset(void)
     if (storage == NULL)
         return false;
     lisp_app_runtime_reset();
+    lisp_load_runtime_reset();
     active = false;
     initialized = false;
     selftest_running = false;
@@ -168,6 +172,9 @@ bool lisp_runtime_reset(void)
     init_stage = "app-extensions";
     if (!lisp_app_runtime_register(output, output_user))
         return false;
+    init_stage = "load-extension";
+    if (!lisp_load_runtime_register())
+        return false;
     init_stage = "ready";
     initialized = true;
     return true;
@@ -184,18 +191,18 @@ bool lisp_runtime_init(void *memory, size_t capacity, lisp_output_fn callback, v
     output_user = user;
     return lisp_runtime_reset();
 }
-bool lisp_runtime_submit(const char *source, size_t length, uint64_t now_ms)
+static bool submit(const char *source, size_t length, uint64_t now_ms, char *buffer, size_t capacity)
 {
     if (!initialized || active || lisp_runtime_app_active() || source == NULL || length == 0 ||
-        length >= sizeof(storage->source) || memchr(source, 0, length) != NULL)
+        length >= capacity || memchr(source, 0, length) != NULL)
         return false;
     /* Interop launcher allocation does not trigger GC on its own. Collect
      * before replacing the previous reader buffer, on this same owner. */
     (void)lbm_perform_gc();
-    memcpy(storage->source, source, length);
-    storage->source[length] = 0;
+    memcpy(buffer, source, length);
+    buffer[length] = 0;
     wrover_lisp_timestamp_us = (uint32_t)(now_ms * 1000);
-    lbm_create_string_char_channel(&storage->reader_state, &storage->reader, storage->source);
+    lbm_create_string_char_channel(&storage->reader_state, &storage->reader, buffer);
     output_remaining = 8192;
     root_id = lbm_load_and_eval_program(&storage->reader, NULL);
     if (root_id < 0) {
@@ -207,6 +214,16 @@ bool lisp_runtime_submit(const char *source, size_t length, uint64_t now_ms)
     active = true;
     return true;
 }
+bool lisp_runtime_submit(const char *source, size_t length, uint64_t now_ms)
+{
+    return initialized && !lisp_runtime_load_active() &&
+           submit(source, length, now_ms, storage->source, sizeof(storage->source));
+}
+bool lisp_runtime_submit_loaded(const char *source, size_t length, uint64_t now_ms)
+{
+    return initialized &&
+           submit(source, length, now_ms, storage->loaded_source, sizeof(storage->loaded_source));
+}
 static void has_context(eval_context_t *context, void *found, void *unused)
 {
     (void)context;
@@ -216,14 +233,19 @@ static void has_context(eval_context_t *context, void *found, void *unused)
 void lisp_runtime_step(uint64_t now_ms)
 {
     if (!initialized || !active) {
+        if (initialized)
+            lisp_load_runtime_step(now_ms);
         lisp_app_runtime_step(now_ms);
         return;
     }
+    bool loading = lisp_runtime_load_active();
     if (now_ms - started_ms >= EVAL_TIMEOUT_MS) {
         output_remaining = RESULT_CAPACITY;
         emit("ERROR: evaluation timeout; RAM definitions cleared\n");
         if (!lisp_runtime_reset())
             emit("ERROR: runtime reset failed\n");
+        if (loading)
+            lisp_load_runtime_failed();
         return;
     }
     wrover_lisp_timestamp_us = (uint32_t)(now_ms * 1000);
@@ -235,6 +257,8 @@ void lisp_runtime_step(uint64_t now_ms)
             emit("ERROR: detached contexts unsupported; RAM definitions cleared\n");
             if (!lisp_runtime_reset())
                 emit("ERROR: runtime reset failed\n");
+            if (loading)
+                lisp_load_runtime_failed();
         }
     }
 }

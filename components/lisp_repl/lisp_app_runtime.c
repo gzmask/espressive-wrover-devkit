@@ -149,7 +149,8 @@ static lbm_value app_run(lbm_value *arguments, lbm_uint count)
     lbm_value functions[3];
     if (count != 1 || !descriptor(arguments[0], functions))
         return ENC_SYM_TERROR;
-    if (!attached || lisp_runtime_app_active() || display.state(display.user) != LISP_APP_DISPLAY_TERMINAL)
+    if (!attached || lisp_runtime_app_active() || lisp_runtime_load_active() ||
+        display.state(display.user) != LISP_APP_DISPLAY_TERMINAL)
         return ENC_SYM_EERROR;
     /* Copy the descriptor, then root it in the global environment. Never
      * retain an unrooted closure in C across GC. Callbacks revalidate lookup. */

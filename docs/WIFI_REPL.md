@@ -1,6 +1,6 @@
-# Wi-Fi REPL：直接TCP，无证书/token（当前0.4.0 factory，已部署）
+# Wi-Fi REPL：直接TCP，无证书/token（当前0.5.0 factory）
 
-0.4.0-lisp-app-usb已准确批准并唯一USB应用写入54.1秒，沿用单槽表/旧引导。180.057秒正常启动只读通过：ONLINE8417ms/TCP8487ms、版本/IP/nc提示各一次、实际probe PASS与联网后34条healthy。网络仍TCP2323，无登录/自动eval/HTTPS/OTA；本次没有UART/TCP交互或demo，旧0.2.3 nc测试仅历史。见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。
+0.5.0-app-url-usb已准确批准并唯一USB应用写入66.2秒，沿用单槽表/旧引导。180.101秒正常启动只读通过：ONLINE8508ms/TCP8568ms、版本/IP/nc提示各一次、实际probe PASS与联网后34条healthy。REPL仍TCP2323，无登录/自动eval/HTTPS服务/OTA；URL loader仅为出站HTTPS客户端，本次没有UART/TCP交互或demo，旧0.2.3 nc测试仅历史。见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。
 
 当前启用Lisp应用层：终端模式仍如下REPL，应用运行期间普通源码拒绝，TCP :stop/:key X为控制命令，断线不停止应用，详见 [LISP_APPS.md](LISP_APPS.md)。这些新交互目前仅主机测试，未实机验收；全部写权限已消费，后续交互另批。
 
@@ -16,13 +16,17 @@
 
 新候选私有冻结 `.local/flash/boot-info-2026-11-10/`：0.2.4-boot-info-ota1106720字节，SHA256 `a068d068924155ee7f069548ad83f6d37b5cdacce7e7c3ebeaa2e3008a794fc2`，B镜像 `[0x160000,0x26e320)`、擦写 `[0x160000,0x26f000)`/271扇区，另仅SDK控制 `[0xc000,0xe000)` 生命周期更新。114个来源文件构建前后相同、镜像header/footer及冻结SHA256SUMS通过，后来用户准确批准，已唯一POST/HTTP200，38836ms完成30秒健康确认，保留A0.2.3与补集；所有写权限耗尽。最终只读观察，不自动UART/TCP eval。冻结PENDING原文保持不改，实际结果见本目录acceptance-summary/resume。
 
+## URL加载接口（0.5.0已启用，真实URL交互未测）
+
+新开发配置通过原TCP/UART提交`(app-load-url "https://…/app.lisp")`，即时回复接受；`:load-status`/`:load-cancel`不等下载结束，普通求值在下载/加载期间拒绝。TCP EOF不取消请求，不跨连接异步推送结果；加载成功再手动app-run。HTTPS仅为出站客户端，TCP2323仍无认证，也不恢复旧OTA/HTTPS服务。完整边界见 [APP_URL_LOADING.md](APP_URL_LOADING.md)。0.5.0已部署并通过正常只读启动，本次未发送这些命令，真实URL加载/校时/运行仍未验收。
+
 ## 直接使用
 
 ```sh
 nc DEVICE_IPV4 2323
 ```
 
-当前IP仅私存 `.local/flash/lisp-app-0.4.0/device-ip.txt`，DHCP可能改变，不发布IP/MAC。直接出现 `lbm>`，输入：
+当前IP仅私存 `.local/flash/app-url-0.5.0/device-ip.txt`，DHCP可能改变，不发布IP/MAC。直接出现 `lbm>`，输入：
 
 ```lisp
 (+ 1 2)
@@ -65,7 +69,7 @@ nc DEVICE_IPV4 2323
 
 私有冻结 `.local/flash/tcp-repl-2026-11-10/`：111个来源文件构建前后相同、SDK镜像头/footer与SHA256SUMS通过，app/ELF/sdkconfig/source0400。后来用户对该准确hash/范围明确批准，已创建authorization/marker并完成唯一POST；冻结candidate/source保留原PENDING历史，当前事实见acceptance-summary/resume，不改档案、不作为再次写许可。
 
-## 历史0.2.4设备与下一次OTA边界（不适用当前0.4.0）
+## 历史0.2.4设备与下一次OTA边界（不适用当前0.5.0）
 
 历史0.2.4阶段运行B/VALID并保留A0.2.3备用；当时检查点 `.local/flash/boot-info-2026-11-10/`，先读CONTINUE/resume/acceptance-summary/final-boot-summary/post-protection/summary及authorization/marker（本版没有tcp-tests/交互eval）。最新参考 `post-protection/current-0.2.4-expected.bin` 是重建且实际完整SDK匹配，不是新双读；核验在最终B180秒前。旧0.2.3及更早全片预期不再代表当前B/控制，不改旧归档。
 

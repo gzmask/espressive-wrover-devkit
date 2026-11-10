@@ -2,7 +2,21 @@
 
 硬件初检：2026-11-07 01:14 UTC；当前设备记录截止2026-11-10，LCD终端目视仍待反馈。状态采用PASS / FAIL / NOT TESTED；历史未实现/旧端口只属于对应版本，不能当作当前限制或新写入许可。
 
-## 当前0.4.0 factory：一次USB应用更新／只读启动通过，应用交互未测
+## 当前0.5.0 factory：一次USB应用更新／只读启动通过，URL交互未测
+
+- **PASS（唯一写入）** — 准确批准5a8bb890.../1194400字节/[10000,134000)/292扇区，新同板/8字段/实际完整0.4.0基线及旧引导通过后，新marker唯一USB应用写入66.2秒；无引导/表/NVS/reserved控制/eFuse写入、OTA POST、重试或恢复。
+- **PASS（保护）** — 新应用/FFpadding、完整引导/表/NVS/reserved/free/旧B/旧数据及全部补集、8字段与实际完整4MiB预期匹配。current-0.5.0-expected.bin为重建/实际SDK匹配，非新双读；全部Flash/security检查在最后正常启动前，之后只有UART采集和本地整理，未再读Flash/HTTPS。
+- **PASS（180.101秒正常启动只读）** — 单次factory10000/002a0000、版本/冻结ELF前缀80c5d66a7匹配；2138ms ready/align_mod8=0/probe PASS，PSRAM128KiB六模式，固定ILI9341帧1→851、心跳0→178。ONLINE8508ms/TCP8568ms，12648ms起34条healthy、最后178648ms；仅联网等待中一次unhealthy，无异常复位或URL loader启动错误。版本/USB/USB only/IP/TCP/nc各一次，无自动eval/help/URL请求。
+- **PASS（helper）** — 新专用写入helper/准确范围/marker/失败不重试/错误授权mock及Kondo0/格式先通过；2个只读capture mock验证无写字节、单次RTS和关闭；纯本地总结正反例/写文件模型通过，无新增硬件操作。UART释放，无后台监控，全部权限耗尽。
+- **NOT TESTED** — 真实URL/TLS/证书失败/DNS/SNTP/chunked/慢体/断网、目标峰值堆栈、加载后绘图/退出、LCD目视/颜色/FPS/撕裂、长GC/full8MiB/掉电/USB恢复/BT/DSP/SD。本次未发送UART/TCP/URL/demo命令，旧0.4.0 RAM demo随复位清除，旧交互不是URL验收。检查点`.local/flash/app-url-0.5.0/`，交互另批。
+
+## 历史URL源码离线验证（0.5.0开发版，后来正式候选已部署）
+
+- **PASS（主机）** — 默认64位与额外value32/pointer64各149项C ASan/UBSan；新增21项纯URL/有界下载/邮箱、真实Lisp加载与初始化故障。扩展原生产TCP session/socketpair模型，验证异步ACK/status/cancel、EOF继续/复连及原定义保留；模拟下载不是HTTPS/ESP32实测。
+- **PASS（回归）** — 28Python/4历史OTA mock，六配置URL+TCP/URL+UART/URL关闭app+UART/全部关闭/扫描/显式历史OTA编译、格式和纯逻辑分析。新目录build-app-url-*、host-build-url{,-word32}，不改旧构建/冻结/验收档案；本地主机构建依赖预扫描及poll命名阻断已修正，没有设备操作。
+- **NOT TESTED** — 板上URL接口、真实TLS/证书失败/DNS/SNTP/chunked/慢响应/断网、目标堆栈峰值、加载后LCD切换/退出。该开发阶段物理仍0.4.0，无USB/串口/复位/设备请求；后续准确批准后的0.5.0部署见顶节，全部写权限现已耗尽。细节见 [APP_URL_LOADING.md](APP_URL_LOADING.md)。
+
+## 历史0.4.0 factory：一次USB应用更新／只读启动通过（现已替换）
 
 - **PASS（写入）** — 准确批准564c97b.../989280字节/[10000,102000)/242扇区后，新同板/8字段/实际完整0.3.0基线与已冻结旧引导通过，新marker唯一USB应用写入54.1秒；无表/引导/NVS/旧控制/eFuse写入、OTA POST、重试或恢复。
 - **PASS（保护）** — 新应用＋FFpadding、表/引导/NVS/reserved/free/旧B完整字节/旧数据及全部补集、8安全字段和实际完整4MiB预期匹配。current-0.4.0-expected.bin为重建/实际SDK匹配，非新双读。全部保护在最后正常启动前，此后仅UART采集和本地解析。

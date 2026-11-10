@@ -1,6 +1,10 @@
-# LispBM REPL＋LCD终端（当前0.4.0 factory，无认证TCP＋UART＋应用层）
+# LispBM REPL＋LCD终端（当前0.5.0 factory，无认证TCP＋UART＋应用层/URL loader）
 
-0.4.0已准确批准并唯一USB应用写入54.1秒，沿用单槽表/旧引导；180.057秒正常启动只读通过：factory/版本/冻结ELF前缀、实际probe PASS/align_mod8=0、PSRAM128KiB六模式、固定ILI9341帧1→851、心跳0→177、联网后34条healthy。版本/USB only/IP/TCP/nc各一次，无自动eval/整段help。全部Flash/security保护在最后启动前；之后只有UART读取与本地解析，没有新UART/TCP交互或LCD独立目视。旧12UART/24TCP不能外推本版，见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。
+0.5.0已准确批准并唯一USB应用写入66.2秒，沿用单槽表/旧引导；180.101秒正常启动只读通过：factory/版本/冻结ELF前缀、实际probe PASS/align_mod8=0、PSRAM128KiB六模式、固定ILI9341帧1→851、心跳0→178、联网后34条healthy，无URL loader启动错误。版本/USB only/IP/TCP/nc各一次，无自动eval/整段help。全部Flash/security保护在最后启动前；之后只有UART读取与本地解析，没有新UART/TCP交互或LCD独立目视。旧12UART/24TCP不能外推本版，见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。
+
+## URL加载接口（已部署，实际HTTPS加载未测）
+
+新开发配置提供`(app-load-url "https://…/app.lisp")`与`:load-status`/`:load-cancel`，后台下载/完整验证后由原owner加载最多32KiB源码，再显式app-run；普通REPL仍1023字节。网络和求值取消语义不同，不做顶层定义事务回滚。接口已随0.5.0启用，但本次未发URL/demo命令，详见 [APP_URL_LOADING.md](APP_URL_LOADING.md)。新源码运行时额外预留约32KiB PSRAM独立reader区，不挤占LispBM通用64KiB池；原固定对齐、probe与5秒协作式限制保留。
 
 ## 前台应用层（已部署配置，实际切换待交互验收）
 
