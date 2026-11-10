@@ -1,8 +1,10 @@
-# Wi-Fi REPL：直接TCP，无证书/token（0.2.4 B/VALID，已部署）
+# Wi-Fi REPL：直接TCP，无证书/token（当前0.3.0 factory，已部署）
 
-用户明确要求取消REPL的cert/token。**设备现在运行0.2.4/B/VALID，明文TCP2323，无登录、无专用客户端；0.2.3的真实nc已通过，本版按用户要求未主动发测试表达式。** OTA的HTTPS8443证书和Bearer认证不变；不把“取消REPL认证”扩大为取消固件上传保护。
+当前0.3.0单槽USB保留本TCP2323协议/原owner，无登录或自动eval；固件用USB更新/恢复，不提供HTTPS8443/OTA/status/health。准确批准后应用＋表各一次USB写入，180.203秒正常启动只读验收通过：8.384秒ONLINE、8.444秒监听就绪，版本/IP/nc提示各一次。新UART/TCP交互回归未执行，旧0.2.3真实nc测试仅历史。见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。
 
-## 安静启动提示（0.2.4已部署并只读验收）
+以下0.2.4/旧OTA说明为历史，旧接口/IP参考和冻结PENDING不能当作当前操作任务或权限。
+
+## 历史安静启动提示（0.2.4已部署并只读验收）
 
 已在新源码加简短LCD/串口启动提示：版本、USB115200、Wi-Fi connecting；联网且TCP就绪后一次性报告IP、TCP2323、`nc IP 2323`、OTAHTTPS8443。启动不再自动打印整段help，手动`:help`仍可用。内部单次(+1 2)==3健康probe保留但成功静默，不把测试输出刷到LCD；失败仍停止健康确认。
 
@@ -18,7 +20,7 @@
 nc DEVICE_IPV4 2323
 ```
 
-当前IP仅私存 `.local/flash/boot-info-2026-11-10/final-https/device-ip.txt`，DHCP可能改变，不发布IP/MAC。直接出现 `lbm>`，输入：
+当前IP仅私存 `.local/flash/single-usb-0.3.0/device-ip.txt`，DHCP可能改变，不发布IP/MAC。直接出现 `lbm>`，输入：
 
 ```lisp
 (+ 1 2)

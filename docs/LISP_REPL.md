@@ -1,10 +1,14 @@
-# LispBM REPL＋LCD终端（当前0.2.4 B/VALID，无认证TCP＋UART）
+# LispBM REPL＋LCD终端（当前0.3.0 factory，无认证TCP＋UART）
+
+0.3.0已准确批准并各一次USB应用/表迁移；180.203秒正常启动只读通过，actual probe PASS/align_mod8=0、PSRAM128KiB六模式、固定ILI9341帧1→851、心跳日志0→178，联网后健康记录正常。版本/USB only/IP/TCP/nc各一次，无自动eval。UART/TCP/RAM定义保留，固件改USB更新/恢复，无HTTPS/OTA/镜像回退；没有新UART/TCP交互回归或LCD独立目视。两模型各96项离线回归另计；旧12UART/24TCP不能外推本版。见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。
+
+## 历史0.2.4 B/VALID（已迁移，不再是备用槽）
 
 当前0.2.4已准确批准并唯一POST部署B/VALID；正常B只读观察180.146秒，启动版本/IP/端口/nc各一次、无自动help/测试eval。内部单次真实probe保留且成功静默，A0.2.3备用；从今启动观察只读，不自动UART/TCP eval，accept_*默认拒绝，交互另需明确许可。新版本没有主动跑下面历史的12UART/24TCP，不能挪作0.2.4结果。
 
 最新私有参考boot-info-2026-11-10/post-protection/current-0.2.4-expected.bin为重建实际SDK匹配，非新双读，保护核验在最后B180秒前；之后只有只读HTTPS。LCD完整banner已提交，未独立目视；UART初始connecting行可被SDK记录插入，IP/端口/nc原始行完整。
 
-## 历史0.2.3交互验收（当前A备用）
+## 历史0.2.3交互验收（原A已部分覆盖，不再备用）
 
 当前0.2.3已通过唯一真实OTA POST部署A/VALID，保留B0.2.2备用。直接nc DEVICE_IPV42323，无cert/token/login，24项真实TCP（含nc）及正常A重启180.049秒/12项UART通过。原owner求值/共享RAM，OTA原TLS/token保留，旧HTTPS/repl移除；不提供Telnet协商/WebSocket/浏览器。命令行及边界见 [WIFI_REPL.md](WIFI_REPL.md)。
 

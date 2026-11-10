@@ -2,7 +2,18 @@
 
 硬件初检：2026-11-07 01:14 UTC；当前设备记录截止2026-11-10，LCD终端目视仍待反馈。状态采用PASS / FAIL / NOT TESTED；历史未实现/旧端口只属于对应版本，不能当作当前限制或新写入许可。
 
-## 当前0.2.4 B/VALID：安静启动与IP端口提示通过
+## 当前0.3.0 factory：单槽USB迁移与只读启动验收
+
+- **PASS（主机）** — 默认64位与value32/pointer64各96项C ASan/UBSan；新增USB banner与3个健康状态用例，原实际LispBM逻辑回归保留。28Python（含新单槽分区4项、配置guard9项）和4个历史OTA mock通过，无设备IO。
+- **PASS（构建）** — 新单槽full/off/scan/uart及显式历史OTA五配置；新factory容量2.625MiB，完整镜像初测980176字节，余1772336字节。单槽无OTA服务/HTTP server/上传函数/OTA密钥符号，仍保留Lisp/TCP/静默probe和健康诊断。
+- **PASS（范围模型）** — 固定IDF官方分区验证/MD5往返，单factory、旧控制区reserved且无data/ota，NVS/free/旧数据类型/范围保持。不是实际Flash保护核验。
+- **PASS（真实USB迁移）** — 用户准确批准应用6da2c426.../[10000,100000)/240扇区、表7c33ad72.../[8000,9000)/1扇区后，新同板/8字段/实际完整0.2.4基线与旧引导摘要通过；先应用一次53.7秒、全片核验，再表一次0.1秒、全片核验，均保持ROM。没有重试/OTA POST/bootloader/control/NVS写入。
+- **PASS（实际保护）** — 新app/表FFpadding、bootloader/NVS/reserved/free/完整旧B字节/旧数据与全部补集、写后8字段及实际完整4MiB预期匹配。最新single-usb-0.3.0/post-protection/current-0.3.0-expected.bin是重建且实际SDK匹配，非新双读。全部Flash/security核验在最终正常启动前。
+- **PASS（正常启动只读180.203650秒）** — 单次factory10000/002a0000启动，运行0.3.0/ELF摘要前缀匹配，init_stage=ready align_mod8=0 selftest=PASS，PSRAM128KiB六模式、固定ILI9341帧1→851/心跳日志0→178。ONLINE8384ms/TCP8444ms；6574ms有一次联网等待中的unhealthy记录，12574ms起34条healthy正常，最后178574ms。版本/USB115200/USB only/WiFi connecting/:help短提示/IP/TCP/nc各一次，无自动help/eval/OTA提示；未发UART/TCP测试输入，UART释放。
+- **NOT TESTED** — 写回旧版USB恢复/掉电失败注入、新UART/TCP交互、真实掉线/键盘/新LCD独立目视/full8MiB/长GC。旧B字节保留不是独立备用槽，单槽没有OTA VALID状态。所有写权限耗尽，没有更多设备任务。
+- 初次本地主机构建的CONFIG依赖时序／alias错误与未知Kconfig项已修正，显式历史回归通过；未触及设备，不是OTA重试。上游既有warning仍保留。详见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。
+
+## 历史0.2.4 B/VALID：安静启动与IP端口提示通过
 
 - **PASS（唯一OTA）** — 用户准确批准a068d068.../B镜像[160000,26e320)、擦写[160000,26f000)/271扇区及标准SDK控制后，新的同板/8字段/实际完整0.2.3基线、先采集等A/HTTPS就绪后的最终TLS通过；唯一POST/HTTP200写1106720字节，软件重启B，38836ms完成30秒确认，无重传/USB写镜像。
 - **PASS（正常B只读180.146秒）** — 版本/USB115200/IP/TCP2323/nc/OTA8443各一次，无自动help、无self-test成功结果/其他eval结果/远程源码回显；单次真实启动probe仍PASS。转换/最终采集metadata均uart_commands_sent=false，未连接TCP发eval、未调用accept_*。
@@ -17,7 +28,7 @@
 - 主机批量UART/TCP eval验收helper默认拒绝，guard测试未触设备；以后正常启动观察仅只读，不自动eval，不把主机交互批次说成固件启动自测。
 - **NOT TESTED** — 新镜像实际启动信息/LCD可读/只显示一次/OTA确认。本轮没有USB/GET/TCP/复位；新准确批准后才写B，保留当前A0.2.3。
 
-## 历史0.2.3 A/VALID：真实无证书/token TCP已通过（当前A备用）（2026-11-10）
+## 历史0.2.3 A/VALID：真实无证书/token TCP已通过（原A已部分覆盖）（2026-11-10）
 
 - **PASS（唯一OTA）** — 用户对准确30e3d441.../1106176字节/A[10000,11f000)/标准SDK控制[c000,e000)批准后，新同板/8字段/实际完整0.2.2基线通过；采集先启动、等B/probe/HTTPS就绪再最终固定证书GET，才创建marker唯一POST/HTTP200。SW_CPU_RESET进入A，38806ms完成30秒连续健康确认；无重传/USB写镜像。
 - **PASS（24项真实TCP）** — 无cert/token/login，包含真正nc；3/定义/lambda/42/hello/错误恢复/reset遗忘、多行续行/分包/编辑CRLF、NUL和超长拒绝/恢复、半句EOF不执行/重连RAM定义保留、UART busy不执行/清理。只固定RAM指令，不存储/系统/GPIO操作。

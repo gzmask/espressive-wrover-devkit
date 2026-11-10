@@ -1,4 +1,5 @@
-# Proposed migration only; NOT permission to flash generated artifacts.
+# Historical dual-slot regression ONLY; not a new deployment/update profile.
+CONFIG_SINGLE_APP_USB_ENABLE=n
 CONFIG_OTA_SERVICE_ENABLE=y
 CONFIG_PARTITION_TABLE_SINGLE_APP=n
 CONFIG_PARTITION_TABLE_CUSTOM=y

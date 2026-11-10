@@ -1,0 +1,21 @@
+menu "Firmware update strategy"
+    config SINGLE_APP_USB_ENABLE
+        bool "Single factory application; USB firmware updates and recovery"
+        default y
+        help
+            Use partitions.single.csv: one factory app spanning the former
+            A/B region. Wi-Fi TCP REPL remains independent. No network firmware
+            update, HTTPS status server or bootloader application rollback.
+            Preserve NVS and the old OTA control bytes as reserved data.
+            Building is not permission to change a device partition table.
+            Disable only for explicit historical dual-slot regression builds.
+    config OTA_SERVICE_ENABLE
+        bool "Legacy dual-slot regression: authenticated HTTPS application OTA"
+        depends on WIFI_SERVICE_CONNECT_ENABLE && BOARD_DISPLAY_ENABLE && SPIRAM
+        default n
+        help
+            Historical regression only; disable SINGLE_APP_USB_ENABLE.
+            Requires separately approved dual-slot layout and rollback bootloader.
+            Private token/TLS files are embedded via CMake, not sdkconfig.
+            Never enables NVS or eFuses.
+endmenu

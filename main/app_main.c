@@ -31,9 +31,47 @@
 #include "psram_probe.h"
 #endif
 
+#if CONFIG_SINGLE_APP_USB_ENABLE || CONFIG_OTA_SERVICE_ENABLE
+static atomic_uint last_heartbeat_tick;
+#endif
+
+#if CONFIG_SINGLE_APP_USB_ENABLE
+#include "firmware_health_logic.h"
+static atomic_bool usb_startup_complete;
+static atomic_bool usb_startup_passed = true;
+static void usb_startup_fail(bool complete)
+{
+    atomic_store(&usb_startup_passed, false);
+    if (complete)
+        atomic_store(&usb_startup_complete, true);
+}
+static firmware_health_state_t usb_health_state(void)
+{
+    unsigned last = atomic_load(&last_heartbeat_tick);
+    firmware_health_inputs_t inputs = {
+        .startup_complete = atomic_load(&usb_startup_complete),
+        .startup_passed = atomic_load(&usb_startup_passed),
+        .heartbeat_recent = last != 0 && (TickType_t)(xTaskGetTickCount() - last) <= pdMS_TO_TICKS(3000),
+        .display_healthy = true,
+        .repl_healthy = true,
+        .wifi_online = true,
+    };
+#if CONFIG_BOARD_DISPLAY_ENABLE
+    inputs.display_healthy = board_display_is_healthy();
+#endif
+#if CONFIG_LISP_REPL_ENABLE
+    inputs.repl_healthy = lisp_repl_is_healthy();
+#endif
+#if CONFIG_WIFI_SERVICE_CONNECT_ENABLE
+    wifi_link_snapshot_t link;
+    inputs.wifi_online = wifi_service_get_link_snapshot(&link) && link.phase == WIFI_LINK_ONLINE;
+#endif
+    return firmware_health_classify(inputs);
+}
+#endif
+
 #if CONFIG_OTA_SERVICE_ENABLE
 #include "ota_service.h"
-static atomic_uint last_heartbeat_tick;
 static bool startup_healthy;
 static bool ota_health(void)
 {
@@ -75,7 +113,7 @@ static void heartbeat_task(void *argument)
             /* Bounded queue: never block sampling indefinitely behind logging. */
             ESP_LOGW(TAG, "sample queue full; heartbeat sample dropped");
         }
-#if CONFIG_OTA_SERVICE_ENABLE
+#if CONFIG_SINGLE_APP_USB_ENABLE || CONFIG_OTA_SERVICE_ENABLE
         else {
             atomic_store(&last_heartbeat_tick, (unsigned)xTaskGetTickCount());
         }
@@ -92,7 +130,16 @@ static void log_status(const node_status_t *status)
     } else {
         ESP_LOGE(TAG, "status serialization failed (allocation/buffer/state)");
     }
+#if CONFIG_SINGLE_APP_USB_ENABLE
+    firmware_health_state_t health = usb_health_state();
+    const char *state = health == FIRMWARE_STARTING  ? "starting"
+                        : health == FIRMWARE_HEALTHY ? "healthy"
+                                                     : "unhealthy";
+    ESP_LOGI(TAG, "status task stack low-water=%u bytes; runtime_health=%s; firmware_update=USB",
+             (unsigned)uxTaskGetStackHighWaterMark(NULL), state);
+#else
     ESP_LOGI(TAG, "status task stack low-water=%u bytes", (unsigned)uxTaskGetStackHighWaterMark(NULL));
+#endif
 }
 
 static void status_task(void *argument)
@@ -175,6 +222,9 @@ void app_main(void)
     QueueHandle_t samples = xQueueCreate(SAMPLE_QUEUE_LENGTH, sizeof(node_sample_t));
     if (samples == NULL) {
         ESP_LOGE(TAG, "cannot allocate heartbeat queue; tasks not started");
+#if CONFIG_SINGLE_APP_USB_ENABLE
+        usb_startup_fail(true);
+#endif
 #if CONFIG_OTA_SERVICE_ENABLE
         esp_restart();
 #endif
@@ -183,6 +233,9 @@ void app_main(void)
     if (xTaskCreate(status_task, "node_status", TASK_STACK_BYTES, samples, 2, NULL) != pdPASS) {
         ESP_LOGE(TAG, "cannot create status task; tasks not started");
         vQueueDelete(samples);
+#if CONFIG_SINGLE_APP_USB_ENABLE
+        usb_startup_fail(true);
+#endif
 #if CONFIG_OTA_SERVICE_ENABLE
         esp_restart();
 #endif
@@ -192,6 +245,9 @@ void app_main(void)
         /* Keep the consumer alive so it reports the missing heartbeat as
          * stalled. Do not delete a task that might be logging on another core. */
         ESP_LOGE(TAG, "cannot create heartbeat task; status task will report stalled");
+#if CONFIG_SINGLE_APP_USB_ENABLE
+        usb_startup_fail(true);
+#endif
 #if CONFIG_OTA_SERVICE_ENABLE
         esp_restart();
 #endif
@@ -200,16 +256,22 @@ void app_main(void)
     ESP_LOGI(TAG, "two FreeRTOS tasks started; heartbeat=1 Hz; status log=5 s; queue=%d",
              SAMPLE_QUEUE_LENGTH);
 #if CONFIG_SPIRAM
+    bool psram_passed = psram_probe_run();
 #if CONFIG_OTA_SERVICE_ENABLE
-    startup_healthy = psram_probe_run();
-#else
-    (void)psram_probe_run();
+    startup_healthy = psram_passed;
 #endif
+#if CONFIG_SINGLE_APP_USB_ENABLE
+    atomic_store(&usb_startup_passed, psram_passed);
+#endif
+    (void)psram_passed;
 #endif
 #if CONFIG_BOARD_DISPLAY_ENABLE
     esp_err_t display_error = board_display_start();
     if (display_error != ESP_OK) {
         ESP_LOGE(TAG, "LCD task start failed: %s; heartbeat remains active", esp_err_to_name(display_error));
+#if CONFIG_SINGLE_APP_USB_ENABLE
+        usb_startup_fail(false);
+#endif
 #if CONFIG_OTA_SERVICE_ENABLE
         startup_healthy = false;
 #endif
@@ -219,6 +281,9 @@ void app_main(void)
     esp_err_t repl_error = lisp_repl_start();
     if (repl_error != ESP_OK) {
         ESP_LOGE(TAG, "REPL startup failed: %s; heartbeat remains active", esp_err_to_name(repl_error));
+#if CONFIG_SINGLE_APP_USB_ENABLE
+        usb_startup_fail(false);
+#endif
 #if CONFIG_OTA_SERVICE_ENABLE
         startup_healthy = false;
 #endif
@@ -228,7 +293,13 @@ void app_main(void)
     esp_err_t wifi_error = wifi_service_start();
     if (wifi_error != ESP_OK) {
         ESP_LOGE(TAG, "Wi-Fi task start failed: %s; heartbeat remains active", esp_err_to_name(wifi_error));
+#if CONFIG_SINGLE_APP_USB_ENABLE
+        usb_startup_fail(false);
+#endif
     }
+#endif
+#if CONFIG_SINGLE_APP_USB_ENABLE
+    atomic_store(&usb_startup_complete, true);
 #endif
 #if CONFIG_OTA_SERVICE_ENABLE
     esp_err_t ota_error = ota_service_start(ota_health);

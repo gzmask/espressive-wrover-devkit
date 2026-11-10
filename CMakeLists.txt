@@ -14,9 +14,13 @@ if(NOT IDF_GIT_RESULT EQUAL 0 OR
 endif()
 
 if(NOT DEFINED PROJECT_VER)
-    set(PROJECT_VER "0.1.6")
+    set(PROJECT_VER "0.3.0-single-usb")
 endif()
-# Only link the application and its dependencies; Wi-Fi runtime is opt-in.
-set(COMPONENTS main)
+# Default excludes the legacy OTA component. Historical regression must
+# explicitly select COMPONENTS="main;ota_service" before dependency expansion.
+if(NOT DEFINED COMPONENTS)
+    set(COMPONENTS main)
+endif()
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(wrover_radio_node)
+include("${CMAKE_CURRENT_LIST_DIR}/cmake/update_mode.cmake")

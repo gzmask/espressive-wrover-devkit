@@ -310,7 +310,11 @@ static void repl_task(void *argument)
 #if CONFIG_WIFI_REPL_ENABLE
     wifi = true;
 #endif
-    if (repl_boot_banner(banner, sizeof(banner), esp_app_get_description()->version, wifi))
+    bool usb_updates = false;
+#if CONFIG_SINGLE_APP_USB_ENABLE
+    usb_updates = true;
+#endif
+    if (repl_boot_banner(banner, sizeof(banner), esp_app_get_description()->version, wifi, usb_updates))
         message(banner);
     prompt();
 #if CONFIG_WIFI_REPL_ENABLE

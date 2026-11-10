@@ -1,9 +1,7 @@
 # OFFLINE EXPERIMENT ONLY: not a flash/OTA candidate or device-write permission.
 CONFIG_LISP_REPL_ENABLE=y
 CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200
-# Match the deployed table for size checking; do not migrate the table.
-CONFIG_PARTITION_TABLE_SINGLE_APP=n
-CONFIG_PARTITION_TABLE_CUSTOM=y
-CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.ota.csv"
+# Layout follows sdkconfig.defaults (single USB) or a later legacy OTA profile.
+# Neither is permission to migrate a device table.
 CONFIG_BOOTLOADER_VDDSDIO_BOOST_1_8V=y
 CONFIG_BOOTLOADER_VDDSDIO_BOOST_1_9V=n

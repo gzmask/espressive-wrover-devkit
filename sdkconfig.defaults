@@ -20,7 +20,14 @@ CONFIG_ESP_INT_WDT=y
 # CONFIG_WIFI_SERVICE_ENABLE is not set
 # CONFIG_BOARD_DISPLAY_ENABLE is not set
 
-# Build with the stock single-app layout; compatibility with existing Flash is
-# APP-ONLY verified against the retained factory slot. This is NOT permission
-# to write the generated bootloader or partition-table bins.
-CONFIG_PARTITION_TABLE_SINGLE_APP=y
+# New source default: single factory app spanning the former A/B region.
+# OFFLINE ONLY until exact bootloader/table/app hashes and erase ranges are approved.
+CONFIG_SINGLE_APP_USB_ENABLE=y
+CONFIG_PARTITION_TABLE_SINGLE_APP=n
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.single.csv"
+# CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE is not set
+# CONFIG_OTA_SERVICE_ENABLE is not set
+# Keep ROM-selected supply; no SDK default 1.8->1.9V boost.
+CONFIG_BOOTLOADER_VDDSDIO_BOOST_1_8V=y
+CONFIG_BOOTLOADER_VDDSDIO_BOOST_1_9V=n

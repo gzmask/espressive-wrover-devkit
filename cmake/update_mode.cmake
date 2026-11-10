@@ -1,0 +1,15 @@
+# Loaded after project() has generated sdkconfig. Also testable with cmake -P.
+if(CONFIG_SINGLE_APP_USB_ENABLE)
+    if(NOT CONFIG_PARTITION_TABLE_CUSTOM OR
+       NOT CONFIG_PARTITION_TABLE_CUSTOM_FILENAME STREQUAL "partitions.single.csv")
+        message(FATAL_ERROR "Single USB mode requires partitions.single.csv; table migration needs separate approval")
+    endif()
+    if(CONFIG_OTA_SERVICE_ENABLE OR CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE OR CONFIG_ESP_HTTPS_SERVER_ENABLE)
+        message(FATAL_ERROR "Single USB mode forbids network OTA, HTTPS server and application rollback")
+    endif()
+    if(CONFIG_SECURE_BOOT OR CONFIG_SECURE_FLASH_ENC_ENABLED OR CONFIG_BOOTLOADER_APP_ANTI_ROLLBACK)
+        message(FATAL_ERROR "Single USB migration must not enable secure boot, Flash encryption or anti-rollback")
+    endif()
+elseif(CONFIG_PARTITION_TABLE_CUSTOM_FILENAME STREQUAL "partitions.single.csv")
+    message(FATAL_ERROR "partitions.single.csv requires SINGLE_APP_USB_ENABLE")
+endif()

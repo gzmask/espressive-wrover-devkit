@@ -1,0 +1,10 @@
+# Offline single-app USB migration; NOT permission to write the table or images.
+# Other data ranges and old OTA control bytes are retained, not erased.
+# Name, Type, SubType, Offset, Size, Flags
+nvs,data,nvs,0x9000,0x3000,
+reserved,data,0x40,0xc000,0x2000,
+free,data,0x40,0xe000,0x2000,
+factory,app,factory,0x10000,0x2a0000,
+flash,data,0x40,0x2b0000,0x10000,
+js_code,data,0x40,0x2c0000,0x100000,
+storage,data,0x40,0x3c0000,0x40000,

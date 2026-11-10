@@ -1,12 +1,18 @@
 # 构建、测试与工具链
 
-## 当前安静启动与连接提示（0.2.4已部署B/VALID）
+## 当前：0.3.0单槽USB（factory，已部署）
+
+默认 `SINGLE_APP_USB_ENABLE=y`／`partitions.single.csv`，factory2.625MiB；网络仅保留原TCP REPL，OTA/HTTPS/镜像回退关闭。新独立 build-single-usb-{full,off,scan,uart} 和显式legacy回归均通过，主机两模型各96项、28Python/4历史mock通过。完整构建命令、约1.69MiB余量及首次迁移/恢复边界见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。
+
+用户另行准确批准后，应用＋表各一次USB迁移及180.203秒正常启动只读验收通过；当前是0.3.0 factory，全部写权限耗尽。构建本身不访问设备；以下旧构建/profile仅历史。新单槽不传OTA密钥/token，不能执行旧OTA上传或工具建议的通用flash。历史OTA回归必须显式 `-DCOMPONENTS="main;ota_service"` 并在defaults最后追加 `tests/sdkconfig.ota.defaults`。
+
+## 历史安静启动与连接提示（0.2.4 B/VALID）
 
 新增repl_boot_info纯格式器；当前源码两模型各92 C ASan/UBSan通过，实际启动probe仍运行但成功静默。版本/IP/TCP2323/nc命令/OTA8443由原owner显示一次，不自动输出help。主机交互验收helper默认拒绝运行，后续启动观察只读，无自动UART/TCP eval。
 
 新回归目录build-boot-info-{off,scan,uart-ota,without-ota}及最终build-boot-info-candidate共五配置通过；冻结.local/flash/boot-info-2026-11-10/已准确批准并唯一POST部署B，180.146秒只读验收通过，新启动信息各一次、无自动eval；A0.2.3保留，全部写权限耗尽。下述0.2.3/冻结资料保留历史，不改归档。见 [WIFI_REPL.md](WIFI_REPL.md)。
 
-## 历史TCP REPL（0.2.3，当前A备用）
+## 历史TCP REPL（0.2.3，原A已部分覆盖）
 
 REPL去除证书/token，改TCP2323/nc；`WIFI_REPL_ENABLE`默认n，依赖Lisp+Wi-Fi station，不依赖OTA。旧HTTPS/repl及公开客户端移除；OTA原TLS/Bearer不改。两模型各88 C ASan/UBSan、15Python、4OTA mock、格式/纯逻辑分析通过。build-tcp-repl-{check,off,scan,uart-ota,without-ota}五个新目录编译通过，without-ota构建不传任何cert/key/token，但不能当作可持续OTA候选刷入。
 
@@ -14,9 +20,9 @@ REPL去除证书/token，改TCP2323/nc；`WIFI_REPL_ENABLE`默认n，依赖Lisp+
 
 ## 当前部署与构建配置
 
-截至2026-11-10，设备实际运行 **`0.2.4-boot-info-ota` / OTA B / VALID**，唯一HTTPS上传、静默启动probe和180.146秒正常B只读观察/HTTPS通过，没有UART/TCP测试输入；本版LCD未独立目视，见 [WIFI_REPL.md](WIFI_REPL.md) 与 [OTA.md](OTA.md)。全部写入许可已消耗，构建不是再次烧录授权。
+截至2026-11-10，设备实际运行 **`0.3.0-single-usb` / factory 0x10000**；应用＋表各一次USB写入，180.203秒正常启动只读观察通过，无UART/TCP测试输入。单槽没有OTA VALID状态或HTTPS服务；本版LCD未独立目视，完整证据见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。全部写入许可已消耗，构建不是再次烧录授权。
 
-根 `CMakeLists.txt` 的默认 `PROJECT_VER` 仍是 **0.1.6**；可选 PSRAM/LCD/Wi-Fi/OTA 默认关闭。默认构建不等于上板配置，也不能作为可持续 OTA 的替代镜像。新增 `LISP_REPL_ENABLE` 也默认关闭；LispBM0.2.0曾初始化失败回退；0.2.1修复后实机启动/UART已通过，见 [LISP_REPL.md](LISP_REPL.md)。
+根 `CMakeLists.txt` 的默认 `PROJECT_VER` 已改为 **0.3.0-single-usb**；单槽USB模式默认启用，可选PSRAM/LCD/Wi-Fi/Lisp仍默认关闭，OTA仅显式历史回归。默认构建不等于上板配置，当前设备只接受经新准确批准的USB固件更新，历史双槽OTA不再可用。新增 `LISP_REPL_ENABLE` 也默认关闭；LispBM0.2.0曾初始化失败回退；0.2.1修复后实机启动/UART已通过，见 [LISP_REPL.md](LISP_REPL.md)。
 
 | 配置 | 构建目录 | 特征 |
 | --- | --- | --- |
@@ -24,8 +30,9 @@ REPL去除证书/token，改TCP2323/nc；`WIFI_REPL_ENABLE`默认n，依赖Lisp+
 | 历史 Wi-Fi 版本 | `.local/build-ota-wifi` | 0.1.7、B已被0.2.2替换，冻结文件保留 |
 | 历史 UART REPL＋OTA | `.local/build-lisp-ota-aligned` | 0.2.1、已被新A替换，冻结保留 |
 | 历史 HTTPS REPL＋OTA | `.local/build-wifi-repl-candidate` | 0.2.2、已被新B替换，冻结保留 |
-| 备用 TCP REPL＋OTA | `.local/build-tcp-repl-candidate` | 0.2.3、A保留VALID |
-| 当前安静启动＋TCP/OTA | `.local/build-boot-info-candidate` | 0.2.4、B运行VALID；IP/端口一次提示，无自动eval，OTA原保护不变 |
+| 历史 TCP REPL＋OTA | `.local/build-tcp-repl-candidate` | 0.2.3、原A已部分覆盖，不再备用 |
+| 历史安静启动＋TCP/OTA | `.local/build-boot-info-candidate` | 0.2.4、旧B字节仍保留但不再有独立槽；冻结不改 |
+| 当前单槽USB＋TCP REPL | `.local/build-single-usb-full` | 0.3.0、factory2.625MiB，USB更新，无HTTPS/镜像回退；IP提示/probe静默 |
 | 默认关闭回归 | `.local/build-ota-off` | 不链接凭据/OTA 私密输入，不启动 Wi-Fi/HTTPS |
 | 扫描回归 | `.local/build-ota-scan` | 扫描，无嵌入 Wi-Fi/OTA 凭据及 HTTPS 入口 |
 

@@ -1,6 +1,12 @@
 # 串口恢复、当前保护边界与历史烧录记录
 
-**当前0.2.4-boot-info-ota / B / VALID，真实Wi-Fi更新/180.146秒只读正常启动通过，IP/端口提示一次、无自动eval，本版LCD未独立目视。** 引导/分区表已按历史授权迁移，全部写入许可已消耗。当前恢复基线 `.local/flash/boot-info-2026-11-10/post-protection/current-0.2.4-expected.bin` 为重建且实际完整SDK摘要匹配，非新双读；核验在最终B启动/只读观察前，此后只有只读HTTPS。A0.2.3完整保留备用，但其旧全片预期以及更早全片预期不代表当前B/控制记录。历史见下方及 [OTA.md](OTA.md)；本页旧factory命令/许可均为历史，不得重放。
+## 当前单槽USB：0.3.0 factory，已部署
+
+准确批准后应用和表各一次USB写入/全片核验通过；保留原bootloader、NVS/reserved/free/旧数据及全部范围外内容。正常factory0x10000/2.625MiB启动只读180.203秒通过，probe/LCD/TCP/联网后健康正常，未发送UART/TCP测试表达式。USB下载/写入迁移通过，不等于实际写回旧版恢复或手动BOOT/EN已实测。
+
+最新参考 `.local/flash/single-usb-0.3.0/post-protection/current-0.3.0-expected.bin` 为重建且实际完整SDK摘要匹配，非新双读；Flash/security核验均在最终正常启动前，之后只有只读UART采集及本地分析。全部旧/新写权限耗尽。旧0.2.4/更早全片不再代表当前表/应用，不能用于未来预检。
+
+后续用匹配单槽布局的准确冻结应用经USB更新/恢复，仍需新批准；不自动重刷或整片写回备份。恢复旧双槽0.2.4须配套旧表/A/B/必要控制及明确范围，不只刷一个app。完整边界见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。旧B字节保留但无独立备用分区，原双槽证据仅历史，旧档案不改。
 
 ## 已验证的恢复路径
 
