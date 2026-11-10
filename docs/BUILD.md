@@ -1,15 +1,31 @@
 # 构建、测试与工具链
 
+## 当前安静启动与连接提示（0.2.4已部署B/VALID）
+
+新增repl_boot_info纯格式器；当前源码两模型各92 C ASan/UBSan通过，实际启动probe仍运行但成功静默。版本/IP/TCP2323/nc命令/OTA8443由原owner显示一次，不自动输出help。主机交互验收helper默认拒绝运行，后续启动观察只读，无自动UART/TCP eval。
+
+新回归目录build-boot-info-{off,scan,uart-ota,without-ota}及最终build-boot-info-candidate共五配置通过；冻结.local/flash/boot-info-2026-11-10/已准确批准并唯一POST部署B，180.146秒只读验收通过，新启动信息各一次、无自动eval；A0.2.3保留，全部写权限耗尽。下述0.2.3/冻结资料保留历史，不改归档。见 [WIFI_REPL.md](WIFI_REPL.md)。
+
+## 历史TCP REPL（0.2.3，当前A备用）
+
+REPL去除证书/token，改TCP2323/nc；`WIFI_REPL_ENABLE`默认n，依赖Lisp+Wi-Fi station，不依赖OTA。旧HTTPS/repl及公开客户端移除；OTA原TLS/Bearer不改。两模型各88 C ASan/UBSan、15Python、4OTA mock、格式/纯逻辑分析通过。build-tcp-repl-{check,off,scan,uart-ota,without-ota}五个新目录编译通过，without-ota构建不传任何cert/key/token，但不能当作可持续OTA候选刷入。
+
+0.2.3用新独立 `.local/build-tcp-repl-candidate`、原OTA密钥/rollback配置，准确批准后已唯一POST部署A/VALID，24项实际TCP含nc/12UART/正常180.049秒通过，B0.2.2保留；冻结旧档案不改，写权限已耗尽。见 [WIFI_REPL.md](WIFI_REPL.md)。
+
 ## 当前部署与构建配置
 
-截至 2026-11-08，设备实际运行 **`0.1.7-ota-wifi` / OTA B / VALID**，已通过一次真实 HTTPS 更新、健康确认和后续正常复位，见 [OTA.md](OTA.md)。全部写入许可已消耗，构建不是再次烧录授权。
+截至2026-11-10，设备实际运行 **`0.2.4-boot-info-ota` / OTA B / VALID**，唯一HTTPS上传、静默启动probe和180.146秒正常B只读观察/HTTPS通过，没有UART/TCP测试输入；本版LCD未独立目视，见 [WIFI_REPL.md](WIFI_REPL.md) 与 [OTA.md](OTA.md)。全部写入许可已消耗，构建不是再次烧录授权。
 
-根 `CMakeLists.txt` 的默认 `PROJECT_VER` 仍是 **0.1.6**；可选 PSRAM/LCD/Wi-Fi/OTA 默认关闭。默认构建不等于上板配置，也不能作为可持续 OTA 的替代镜像。
+根 `CMakeLists.txt` 的默认 `PROJECT_VER` 仍是 **0.1.6**；可选 PSRAM/LCD/Wi-Fi/OTA 默认关闭。默认构建不等于上板配置，也不能作为可持续 OTA 的替代镜像。新增 `LISP_REPL_ENABLE` 也默认关闭；LispBM0.2.0曾初始化失败回退；0.2.1修复后实机启动/UART已通过，见 [LISP_REPL.md](LISP_REPL.md)。
 
 | 配置 | 构建目录 | 特征 |
 | --- | --- | --- |
 | 已部署 bootstrap | `.local/build-ota-bootstrap` | 0.1.6、PSRAM/LCD/STA/HTTPS、回退 bootloader、双槽表 |
-| 已部署 Wi-Fi 更新 | `.local/build-ota-wifi` | 0.1.7、同一 OTA 配置和私有输入，实际运行于 B |
+| 历史 Wi-Fi 版本 | `.local/build-ota-wifi` | 0.1.7、B已被0.2.2替换，冻结文件保留 |
+| 历史 UART REPL＋OTA | `.local/build-lisp-ota-aligned` | 0.2.1、已被新A替换，冻结保留 |
+| 历史 HTTPS REPL＋OTA | `.local/build-wifi-repl-candidate` | 0.2.2、已被新B替换，冻结保留 |
+| 备用 TCP REPL＋OTA | `.local/build-tcp-repl-candidate` | 0.2.3、A保留VALID |
+| 当前安静启动＋TCP/OTA | `.local/build-boot-info-candidate` | 0.2.4、B运行VALID；IP/端口一次提示，无自动eval，OTA原保护不变 |
 | 默认关闭回归 | `.local/build-ota-off` | 不链接凭据/OTA 私密输入，不启动 Wi-Fi/HTTPS |
 | 扫描回归 | `.local/build-ota-scan` | 扫描，无嵌入 Wi-Fi/OTA 凭据及 HTTPS 入口 |
 
@@ -85,8 +101,27 @@ OTA 配置按顺序组合：
 - BIN/ELF/生成 ASM/OBJ 含上述秘密，只留 `.local/`，禁用 ccache；冻结文件 0400，不分享。
 - A/B 镜像共用证书、key、token，不能任意重新生成。源码归档不含外部秘密，单独使用不能重建相同字节。
 - 保留经典 ESP32 rev1/MEMW、CPU160 MHz、Flash DIO/40 MHz/4 MB、PSRAM40 MHz；OTA bootloader 禁用 1.8→1.9V LDO boost，不尝试改电压。
-- 当前 B 已 VALID；未来新镜像的目标应为非运行 A，但仍需新 hash/范围批准。只上传包含对应 OTA 健康确认逻辑的配置；项目名/IDF 匹配不代表任意默认镜像能完成确认。
+- 当前A已VALID；未来新镜像应为非运行B，但仍须新hash/范围批准（会替换现存备用0.1.7）。只上传包含对应 OTA 健康确认逻辑的配置；项目名/IDF 匹配不代表任意默认镜像能完成确认。
 - 当前布局现代校验通过；多个 `data/ota` 的错误属于迁移前 Espruino 表历史，不是当前布局错误。
+
+## LispBM第一阶段构建历史（0.2.0失败，0.2.1功能通过并保留A备用）
+
+2026-11-10另获准确批准的 `0.2.0-lisp-repl-ota` 已真实一次Wi-Fi写A，但初始化失败并自动回退到B；见 [LISP_REPL.md](LISP_REPL.md)。既有离线测试不构成硬件功能通过；新旧写入授权已消费。
+
+- `.local/build-lisp-repl/`：PSRAM/LCD/UART REPL，无 Wi-Fi/HTTPS/OTA 服务，不可直接上传。
+- `.local/build-lisp-off-check/`：默认关闭回归，不依赖/链接 LispBM。
+- `.local/build-lisp-ota-check/`：STA/HTTPS/回退/REPL组合，仅编译；包含既有私有输入，不是批准候选。
+- `.local/build-lisp-diagnostic-check/`：PSRAM/LCD/扫描，REPL关闭，保留原诊断画面。
+
+0.2.1修复使用另一组新目录 `.local/build-lisp-ota-aligned/`（完整OTA组合）、`.local/build-lisp-aligned-{off,scan,dev}/`；四配置离线编译通过。冻结 `.local/flash/lisp-2026-11-10-aligned/` 已准确批准并唯一POST部署A，UART/正常启动通过、目视待反馈；许可已消费。
+
+只使用新目录，未覆盖已部署或冻结目录。锁定 LispBM commit、配置、命令和许可证边界见 [LISP_REPL.md](LISP_REPL.md)。标准主机测试新增9项纯文本/输入测试（共54项）；加 `-DENABLE_LISPBM_TESTS=ON` 后当前共74项，包括真实解释器、初始化阶段故障/恢复、启动probe及端到端测试，不是设备验收。额外的value32/pointer64低地址模型与Xtensa对齐编译检查见LISP_REPL.md。
+
+## Wi-Fi REPL（0.2.2已部署B/VALID）
+
+复用8443的认证POST/repl，无新裸TCP监听/WebSocket/UI；默认 `WIFI_REPL_ENABLE=n`。新目录 `.local/build-wifi-repl-candidate/`（0.2.2-wifi-repl-ota）、`build-wifi-repl-{off,scan,uart-ota}/` 四配置通过。冻结 `.local/flash/wifi-repl-2026-11-10/` 已经准确续批并唯一实际POST部署B，A0.2.1保留；验收在renewed-approval/，冻结PENDING原文不改，不是新许可。命令/边界见 [WIFI_REPL.md](WIFI_REPL.md)。
+
+此原型默认主机60项，加真实LispBM81项，额外32位值模型81项；`bb tests/test_wifi_repl.bb` 为纯mock，不能代替真实HTTP/TLS/FreeRTOS邮箱验收。
 
 ## 主机测试与静态检查
 
@@ -107,6 +142,9 @@ clang-format --dry-run --Werror \
   components/wifi_service/*.c components/wifi_service/include/*.h \
   components/wifi_service/wifi_station.h \
   components/ota_service/*.c components/ota_service/include/*.h \
+  components/lcd_terminal/*.c components/lcd_terminal/include/*.h \
+  components/lisp_repl/*.c components/lisp_repl/include/*.h \
+  components/lispbm_runtime/port/*.h \
   tests/test_*.c
 clj-kondo --lint scripts/ota_upload.bb scripts/validate_ota_files.bb tests/test_ota_upload.bb
 cljfmt check scripts/ota_upload.bb scripts/validate_ota_files.bb tests/test_ota_upload.bb

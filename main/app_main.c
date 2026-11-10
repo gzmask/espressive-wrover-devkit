@@ -18,6 +18,10 @@
 #include "board_display.h"
 #endif
 
+#if CONFIG_LISP_REPL_ENABLE
+#include "lisp_repl.h"
+#endif
+
 #if CONFIG_WIFI_SERVICE_ENABLE
 #include "wifi_service.h"
 #endif
@@ -34,8 +38,14 @@ static bool startup_healthy;
 static bool ota_health(void)
 {
     unsigned last = atomic_load(&last_heartbeat_tick);
-    return startup_healthy && last != 0 && (TickType_t)(xTaskGetTickCount() - last) <= pdMS_TO_TICKS(3000) &&
-           board_display_is_healthy();
+    bool healthy = startup_healthy && last != 0 &&
+                   (TickType_t)(xTaskGetTickCount() - last) <= pdMS_TO_TICKS(3000) &&
+                   board_display_is_healthy();
+#if CONFIG_LISP_REPL_ENABLE
+    return healthy && lisp_repl_is_healthy();
+#else
+    return healthy;
+#endif
 }
 #endif
 
@@ -200,6 +210,15 @@ void app_main(void)
     esp_err_t display_error = board_display_start();
     if (display_error != ESP_OK) {
         ESP_LOGE(TAG, "LCD task start failed: %s; heartbeat remains active", esp_err_to_name(display_error));
+#if CONFIG_OTA_SERVICE_ENABLE
+        startup_healthy = false;
+#endif
+    }
+#endif
+#if CONFIG_LISP_REPL_ENABLE
+    esp_err_t repl_error = lisp_repl_start();
+    if (repl_error != ESP_OK) {
+        ESP_LOGE(TAG, "REPL startup failed: %s; heartbeat remains active", esp_err_to_name(repl_error));
 #if CONFIG_OTA_SERVICE_ENABLE
         startup_healthy = false;
 #endif

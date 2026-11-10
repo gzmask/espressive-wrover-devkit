@@ -1,12 +1,12 @@
 # 串口恢复、当前保护边界与历史烧录记录
 
-**当前0.1.7-ota-wifi / B / VALID，真实Wi-Fi更新已验收关闭。** 引导/分区表已按另行授权迁移，全部写入许可已消耗。当前恢复基线和本次范围见下方0.1.7节及 [OTA.md](OTA.md)；本页旧factory命令/许可均为历史，不得重放。
+**当前0.2.4-boot-info-ota / B / VALID，真实Wi-Fi更新/180.146秒只读正常启动通过，IP/端口提示一次、无自动eval，本版LCD未独立目视。** 引导/分区表已按历史授权迁移，全部写入许可已消耗。当前恢复基线 `.local/flash/boot-info-2026-11-10/post-protection/current-0.2.4-expected.bin` 为重建且实际完整SDK摘要匹配，非新双读；核验在最终B启动/只读观察前，此后只有只读HTTPS。A0.2.3完整保留备用，但其旧全片预期以及更早全片预期不代表当前B/控制记录。历史见下方及 [OTA.md](OTA.md)；本页旧factory命令/许可均为历史，不得重放。
 
 ## 已验证的恢复路径
 
 USB FTDI B 通道（早先 `/dev/cu.usbserial-21401`，2026-11-07 07:44 UTC 重枚举为 `/dev/cu.usbserial-21301`）可在 115200 baud 下通过 esptool 自动复位进入 ESP32 ROM 下载模式，执行 `chip-id` / `flash-id`，再通过 RTS 正常复位。两项命令均已成功，见 [HARDWARE.md](HARDWARE.md)。后续仅覆盖应用的获准写入和三次正常启动已完成，见 [FIRST_FLASH.md](FIRST_FLASH.md)。
 
-历史上端口曾为21301、20301等；截至2026-11-08最后发现FTDI B/UART为`/dev/cu.usbserial-101`，A/JTAG为100。端口不是固定配置，任何新串口操作前须重新枚举并核对同一设备；不要把A当UART。
+历史上端口曾为21301、20301等；2026-11-08曾为B101/A100；2026-11-10最新发现B/UART21401、A/JTAG21400。端口不是固定配置，任何新串口操作前须重新枚举并核对同一设备；不要把A当UART。
 
 ## 手动恢复（尚未由操作者实测）
 
@@ -62,7 +62,7 @@ python -m esptool --chip esp32 --port "$PORT" --baud 115200 \
 
 写后及 690.15 秒在线/135.20 秒无凭据复位测试后，应用与全部范围外 Flash（含旧 NVS）、8 项安全字段一致，另校验完整 4 MiB 当前预期快照。未写 bootloader、分区表或 eFuse，未恢复备份。保护校验后最终正常 RTS 复位、USB 重新提供凭据并采集 45.11 秒通过，设备保持 ONLINE、UART 已释放。凭据不在镜像内，每次复位必须重新经可信本地 USB 传入 RAM；不回显名称或密码，不启动 HTTP。真实掉线重连仍未实测；完整证据见 [WIFI_STA.md](WIFI_STA.md)。
 
-## 当前Wi-Fi部署版：0.1.7-ota-wifi / B / VALID
+## 历史Wi-Fi部署版：0.1.7-ota-wifi / B / VALID（当前B保留作备用）
 
 用户批准四个准确hash后，仅一次USB安装新bootloader/双槽表/seed/A；用户确认LCD无翻转后，唯一HTTPS POST写入0.1.7 B [0x160000,0x258000)，软件重启并30秒健康确认VALID。B两次启动及最终180秒正常复位通过，NVS/free/旧用户数据不变；写前B整槽实际FF而非备用Espruino应用。旧原始Espruino整片双备份保留。
 

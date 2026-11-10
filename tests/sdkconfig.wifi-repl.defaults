@@ -1,0 +1,2 @@
+# Build-only opt-in; NOT permission to update any device.
+CONFIG_WIFI_REPL_ENABLE=y

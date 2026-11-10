@@ -1,8 +1,74 @@
 # 测试记录
 
-硬件初检：2026-11-07 01:14 UTC；当前验收截止2026-11-08。状态采用PASS / FAIL / NOT TESTED；历史未实现/旧端口只属于对应版本，不能当作当前限制或新写入许可。
+硬件初检：2026-11-07 01:14 UTC；当前设备记录截止2026-11-10，LCD终端目视仍待反馈。状态采用PASS / FAIL / NOT TESTED；历史未实现/旧端口只属于对应版本，不能当作当前限制或新写入许可。
 
-## 当前验收摘要：0.1.7-ota-wifi / B / VALID
+## 当前0.2.4 B/VALID：安静启动与IP端口提示通过
+
+- **PASS（唯一OTA）** — 用户准确批准a068d068.../B镜像[160000,26e320)、擦写[160000,26f000)/271扇区及标准SDK控制后，新的同板/8字段/实际完整0.2.3基线、先采集等A/HTTPS就绪后的最终TLS通过；唯一POST/HTTP200写1106720字节，软件重启B，38836ms完成30秒确认，无重传/USB写镜像。
+- **PASS（正常B只读180.146秒）** — 版本/USB115200/IP/TCP2323/nc/OTA8443各一次，无自动help、无self-test成功结果/其他eval结果/远程源码回显；单次真实启动probe仍PASS。转换/最终采集metadata均uart_commands_sent=false，未连接TCP发eval、未调用accept_*。
+- **PASS（健康与保护）** — 固定ILI9341帧1→851、心跳日志0→177、PSRAM128KiB六模式通过；最终GET版本/SDKhash/B/healthy/online/VALID匹配。B/padding、3补集/完整A0.2.3、8字段、实读seq5VALID CRCc8210fcd/seq6VALID CRCda94a023/A控制扇区未变、完整4MiB重建预期匹配；所有Flash检查在最终正常B启动前，此后只读HTTPS，非新双读。UART释放，无后台监控。
+- **边界** — LCD终端整串提交不是目视；原始UART WiFi connecting行有SDK日志插入分段，去掉仅timestamped SDK记录后匹配，不伪造原始行原子性。最终IP/端口/nc原始行完整。两个纯本地主机总结错误未增加设备访问，audit已记录，纠正后完整summary通过。
+- **NOT TESTED** — 新版本LCD目视/滚动、新TCP交互（遵用户要求不自动eval）、真实掉线/丢ACK/owner隔离故障注入、full8MiB/长GC/10分钟/断电/新回退注入/BT/DSP。0.2.3的12UART/24TCP是历史，不计本版。
+- 最新检查点.local/flash/boot-info-2026-11-10/，全部写权限已耗尽，后续仅只读观察，不自动交互测试。
+
+## 历史0.2.4安静启动离线阶段（后续实际部署见顶节）
+
+- 新4项boot/network/minimal/bounds格式测试，原真实Lisp probe用例验证仍执行并通过、成功输出为空；两模型各92 C ASan/UBSan通过。健康门控/失败ERROR不移除。
+- 主机批量UART/TCP eval验收helper默认拒绝，guard测试未触设备；以后正常启动观察仅只读，不自动eval，不把主机交互批次说成固件启动自测。
+- **NOT TESTED** — 新镜像实际启动信息/LCD可读/只显示一次/OTA确认。本轮没有USB/GET/TCP/复位；新准确批准后才写B，保留当前A0.2.3。
+
+## 历史0.2.3 A/VALID：真实无证书/token TCP已通过（当前A备用）（2026-11-10）
+
+- **PASS（唯一OTA）** — 用户对准确30e3d441.../1106176字节/A[10000,11f000)/标准SDK控制[c000,e000)批准后，新同板/8字段/实际完整0.2.2基线通过；采集先启动、等B/probe/HTTPS就绪再最终固定证书GET，才创建marker唯一POST/HTTP200。SW_CPU_RESET进入A，38806ms完成30秒连续健康确认；无重传/USB写镜像。
+- **PASS（24项真实TCP）** — 无cert/token/login，包含真正nc；3/定义/lambda/42/hello/错误恢复/reset遗忘、多行续行/分包/编辑CRLF、NUL和超长拒绝/恢复、半句EOF不执行/重连RAM定义保留、UART busy不执行/清理。只固定RAM指令，不存储/系统/GPIO操作。
+- **PASS（正常A启动）** — 180.049秒，单次正常重启，startup_ready2.137秒，原UART12项通过；PSRAM128KiB六模式/固定单ILI9341、帧1→851/心跳日志0→179；最终HTTPS版本/SDKhash/A/healthy/online/VALID匹配，UART释放，无后台监控。
+- **PASS（保护）** — A+FFpadding、3补集（完整B0.2.2/引导/表/NVS/free/A尾/旧用户数据）、8字段、实读seq5VALID CRCc8210fcd/seq4VALID CRC709d68a8/B控制扇区不变及实际完整4MiB重建预期匹配；非新双读。**全部Flash/security检查在最终正常A180秒测试前，之后只读HTTPS，不声称后读全片。**
+- **NOT TESTED** — 本版LCD目视/滚动、真实Wi-Fi掉线/丢ACK、任意并发/慢客户端/owner8秒隔离故障注入、长GC/full8MiB/10分钟/受控断电/新回退故障注入、BT/DSP/SD。普通TCP EOF/重连不等于Wi-Fi掉线恢复。
+- 软件88/88模型、15Python/4OTA mock、五配置及格式/分析另列，不混作硬件证据。最新私有证据 `.local/flash/tcp-repl-2026-11-10/` 中acceptance-summary/final-boot-summary/tcp-tests/summary/post-protection/summary，全部写权限耗尽，下一非运行B需新准确批准。
+
+## 历史0.2.3无证书/token TCP离线阶段（后续实机结果见顶节）
+
+- 用户要求取消REPL cert/token，源码改为TCP2323/nc，无TLS/认证/专用客户端；HTTPS/repl移除，OTA原TLS/token保持，不扩大上传权限。
+- **软件PASS** — 两模型各88 C ASan/UBSan，含生产TCP session的真实主机socketpair8项和真实LispBM socket集成；15Python、4OTA uploader mock；五配置（off/scan/UART+OTA/TCP+OTA/TCP无OTA无cert/key/token输入）编译及格式/纯逻辑分析通过。
+- **NOT TESTED** — ESP32 TCP可连接性、lwIP/FreeRTOS时序、复连/断线/LCD/并发及新固件OTA确认；host socket不是设备证据。
+- 本轮没有USB/GET/POST/复位。板上仍下述0.2.2/B/VALID，TCP不可用；旧归档/当前全片参考不改，所有旧写权限耗尽，新准确批准才能写A。见 [WIFI_REPL.md](WIFI_REPL.md)。
+
+## 历史0.2.2 B/VALID：HTTPS Wi-Fi REPL通过（当前B备用）（2026-11-10）
+
+- **PASS（一次OTA）** — 用户续批相同准确1dee2fed.../B窗口及标准控制区后，新同板/8字段/实际完整4MiB基线通过；采集先启动，观察A/probe/HTTPS就绪、新固定证书GET才消费新marker。唯一真实POST/HTTP200写1106880字节，38688ms完成30秒健康确认。之前调用前置GET失败POST=0；全部0.2.2操作实际OTA POST合计1，未重传/USB写镜像。
+- **PASS（真实网络17项）** — 固定证书TLS、原token；UART未完成输入409且未执行/清理恢复，无认证和错认证401且未定义，1024字节与非ASCII400；3、定义/lambda/42、hello、错误恢复、RAM reset/忘定义/恢复、LISP READY。只固定RAM指令，网络/repl POST不是/ota上传。
+- **PASS（正常重启180.103秒）** — 单次正常B启动，startup_ready2.121秒，12项原UART全通过；Lisp初始化/probe、PSRAM128KiB六模式、固定单ILI9341通过；帧1→851、心跳日志0→176，最终HTTPS版本/SDKhash/B/online/healthy/VALID匹配。UART释放，无后台监控。
+- **PASS（保护）** — B镜像+FFpadding、3补集（完整A0.2.1/引导/表/NVS/free/B尾/旧数据）、8字段，实读seq3VALID CRCed4a5011/seq4VALID CRC709d68a8，A控制扇区不变；实际完整4MiB重建预期匹配，非新双读。**全部保护核验在最终正常B180秒测试前，之后只有只读HTTPS，不声称后读全片。**
+- **NOT TESTED** — 本版LCD目视/滚动，真实正文截断/慢体、网络失联/丢ACK、owner8秒隔离故障注入、长GC/full8MiB/10分钟/受控断电/新回退故障注入、BT/DSP/SD。
+- 软件81/81模型、15Python、4uploader mock、客户端mock、四配置/格式/纯HTTP分析通过；与本次实际硬件证据分别记录。
+- 最新私有检查点 `.local/flash/wifi-repl-2026-11-10/renewed-approval/`，实际证据见acceptance-summary/final-boot-summary/http-tests/summary/post-protection/summary。全部新旧写授权耗尽，下一非运行目标A仍须新批准。见 [WIFI_REPL.md](WIFI_REPL.md)。
+
+## 历史0.2.1 A/VALID：UART验收（现仍保留A备用）
+
+- **PASS（部署）** — 用户USB重插后新端口同步、同板/8安全字段/实际完整4MiB最新基线/BHTTPS通过；准确70932...批准的1104672字节唯一POST/HTTP200写A，SDK镜像/目标/online/healthy/VALID通过，无重传或USB镜像写入。
+- **PASS（初始化）** — 真实LispBM(+1 2)==3启动probe，init_stage=ready/align_mod8=0，PSRAM runtime169120字节；两次一致9341、单ILI9341，US手动读回/首次关联DHCP和HTTPS通过。
+- **PASS（真实UART）** — 正常A重启后12项：算术3、定义/lambda/42、错误及恢复、Ctrl-U、退格、hello、RAM重置/定义遗忘/恢复、LISP READY；仅发送固定RAM表达式，无设备存储/网络命令。
+- **PASS（正常启动与并发）** — 独立180.052秒，startup_ready2.121秒，LCD提交1→851/栈3336字节、心跳0→179；最终固定证书HTTPS A/0.2.1/冻结内容hash/online/healthy/confirmed匹配，UART释放，无后台监控。
+- **PASS（保护）** — A+FFpadding、3补集（B0.1.7/引导/表/NVS/free/旧数据）、8字段、实际有效seq3/seq2均VALID/CRC且B控制扇区未变、完整4MiB重建预期匹配。**全部保护检查在最终正常A启动/REPL测试前**，之后只读HTTPS。重建不是新双读备份，旧全片预期已失效。
+- **NOT TESTED / 待反馈** — 本版LCD文字可读性/滚动/全程目视；长GC压力、完整8MiB、新10分钟长测、掉线恢复、WPA3细节、受控故障注入/断电、蓝牙键盘/音箱、DSP。0.2.0自然失败回退已实际通过，不外推其他故障。
+- **软件PASS** — 默认64位和额外value32/pointer64模型各74 C ASan/UBSan、15Python、4上传mock、5个私有UART helper单元测试、四配置/格式/纯运行时分析；mock不是上述真实硬件证据。
+- 本次写入授权已消费，不能再刷或恢复；当前私有检查点 `.local/flash/lisp-2026-11-10-aligned/`。完整范围/实现见 [LISP_REPL.md](LISP_REPL.md) 与 [OTA.md](OTA.md)。
+
+## 历史0.2.2首次获准后的部署前检查（阻断POST=0，后续续批后实际上传见顶节）
+
+- 新实际同板/8安全字段/完整4MiB当前0.2.1基线及固定证书AHTTPS通过。
+- 开始UART采集后日志出现POWERON_RESET/0.2.1启动；主机只等1秒就调用uploader，前置GET连接8006ms超时（curl28/HTTP000），HTTPS8513ms才就绪。物理复位原因未确认，helper没有显式RTS复位/发UART指令。
+- **一次uploader调用，实际POST=0、Flash写入=0、无重传/USB恢复**。marker为保守调用权限消费记录，不是假装真正网络上传。非零后停止，需要新的相同准确范围一次批准。
+- 150.100s采集结束、UART释放，之后只读固定证书HTTPS仍0.2.1/A/原SDKhash/online/healthy/VALID。所有完整Flash/security核验在采集前；不声称后来又读全片。网络REPL仍未实机测试，冻结档案不变。
+
+## 历史0.2.2 Wi-Fi REPL离线原型（当时未部署，后续实机结果见顶节）
+
+- **软件PASS** — 默认与额外value32/pointer64模型各81项C ASan/UBSan，新增HTTP源/头/长度/回复边界6项和认证策略→真实LispBM→回复/LCD模型集成1项；不是FreeRTOS/HTTPS仿真或设备验收。
+- **客户端mock PASS** — ASCII/长度、0600输入、固定证书/无insecure、token与源码不在argv、一次POST无重试、异常finally清理；不发真实网络。
+- **实现边界** — 原8443上认证POST/repl，原owner独占求值，一个固定邮箱、UART不混入网络命令，输出2KiB、正文/owner有界等待；无新的裸TCP、WebSocket/浏览器、存储或硬件扩展。
+- **NOT TESTED** — 新镜像的真实网络REPL/TLS/401/409/正文截断、FreeRTOS邮箱时序/并发、客户端断线/timeout、LCD同步与OTA健康确认。本轮未操作设备；当前仍0.2.1 A/VALID。范围/使用见 [WIFI_REPL.md](WIFI_REPL.md)。
+
+## 历史0.1.7 Wi-Fi验收摘要：B / VALID
 
 - **PASS** — 唯一真实HTTPS POST/200，软件重启到0.1.7并30秒健康确认；另一次正常复位180.024秒及证书校验的GET/status内容hash/槽/online/healthy/confirmed通过。
 - **PASS** — PSRAM有限自检、固定ILI9341、US手动策略/首次DHCP、心跳及刷新日志；原始翻转根因未确认，不冒充全程目视检查。
@@ -10,6 +76,33 @@
 - **软件PASS** — 45 C ASan/UBSan、15 Python、4 uploader mock、四配置构建；mock不是实机证明。
 - **代码边界** — GET/status、GET/health不要求Bearer；POST/ota要求Bearer，客户端校验TLS服务端证书。已实测GET/status，GET/health只确认同handler路由，未独立实机调用。
 - **NOT TESTED** — 故障回退、受控断电、真实掉线恢复、新十分钟长测、WPA3细节、完整8MiB、JTAG/备份恢复。完整流程见 [OTA.md](OTA.md)。
+
+## 历史LispBM首次部署：0.2.0（2026-11-10，FAIL/回退B，后续0.2.1已替换A）
+
+- **软件PASS** — 65项 C ASan/UBSan：原45项＋文本终端6＋输入3＋真实LispBM10＋端到端1；不以mock替代真实求值，但也不是UART/SPI/设备验收。
+- **软件PASS** — 默认关闭、REPL、REPL＋STA/HTTPS/回退、原LCD诊断＋扫描四个新目录构建。第三方LispBM单线程配置有4条Xtensa GCC警告，未修改或屏蔽上游；自有代码严格编译/格式通过。
+- **范围** — 第一阶段用UART0输入、40×20 ASCII屏幕、RAM定义及有界求值；无新蓝牙、DSP或存储接口，默认关闭。
+- **PASS（上传/镜像）** — 新准确hash/范围批准后唯一一次HTTPS POST/HTTP200，实际1103808字节校验并软件重启进入A/0.2.0；没有重传/USB镜像写入。
+- **FAIL（固件启动功能）** — LispBM初始化失败，REPL停止；PSRAM128KiB六模式及两次9341/单ILI9341持续提交仍通过，但不能靠它们确认新应用健康。UART REPL求值及终端目视未验收。
+- **PASS（本次自然失败回退）** — 122379ms未确认期限触发重启，只读HTTPS确认返回原B/0.1.7/VALID/healthy/online；Aseq3/ABORTED、Bseq2/VALID，两个CRC有效且B控制扇区未改。这不是完整故障注入/断电测试。
+- **PASS（最终B观察）** — 正常B启动独立180.125秒，帧1→171/心跳0→177，固定证书HTTPS B/旧内容hash/healthy/online/VALID通过，串口释放，无后台监控；这是原B结果，不是新REPL验收。
+- **PASS（保护）** — 写前实际完整4MiB基线、同板/8字段；写后A+padding+3补集、8字段及实际完整4MiB重建预期通过。只允许A窗口及标准OTA控制记录变化。保护核验在最后正常B观察之前，不声称之后重读Flash。
+- **NOT TESTED** — 可用REPL、终端目视/滚动、GC/取消/超时实机交互、PSRAM解释器压力及新应用健康确认。初始化已失败，不把65项64位主机测试当作32位ESP32启动通过。
+- 安装/对齐契约线索与限制见 [LISP_REPL.md](LISP_REPL.md)。全部新旧写入许可已消费，停止写入，不能自动重试/恢复。
+
+## 0.2.1初始化离线修复历史（当时未刷写，后续实机结果见顶节）
+
+- **软件PASS** — 显式8字节PSRAM分配/结构对齐及入口检查；Xtensa编译-only对齐断言旧RED、新GREEN。上游LispBM未修改。
+- **软件PASS** — 默认64位74项C ASan/UBSan，以及现有Rosetta下32位LispBM值/64位指针低地址模型74项；八阶段初始化故障/恢复和真实启动求值probe已覆盖。后者不是原生Xtensa或硬件PSRAM测试。
+- **诊断** — 初始化失败显示具体阶段和align_mod8；启动实际(+1 2)==3后才接受输入并放行REPL健康，未绕过OTA确认。
+- **NOT TESTED** — 新修复在ESP32上的初始化、REPL/LCD可用性、调度、GC和OTA确认。本轮没有USB/GET/POST/复位，不把主机模型当作实机结果。
+- 初次arm64低PAGEZERO模型被macOS拒绝启动；配置已加前置阻断，改用本机已有x86_64 Rosetta模型通过。不安装Rosetta、不更改主机安全/网络配置；不是固件上传重试。
+
+## 历史0.2.1部署前阻断（2026-11-10，当时未上传；后续用户重插解除）
+
+- 新准确hash/范围批准已记录，但esptool只读flash_id下载模式无sync回复、exit2，工具提示TX路径可能不通；物理根因未确认。尚未完成身份/8字段/4MiB新基线，后续写入阻断。
+- **PASS（旧B只读状态）** — 受控正常启动后20.034秒UART采集及固定证书HTTPS确认旧B/0.1.7/旧内容hash/online/healthy/VALID，串口释放。未发送UART命令，不是新REPL或Flash保护验收。
+- **未尝试** — POST=0，无一次性写marker/上传证据目录；这份唯一POST授权未消费但处于BLOCKED，等待USB重插并明确继续新只读预检。不自动重试/跳过检查/改走USB镜像写入。
 
 ## 历史里程碑0：初始硬件/原始备份
 
@@ -168,7 +261,7 @@
 
 ## 软件证据
 
-首次 0.1.0 基线镜像（历史记录；当前0.1.7 OTA镜像见本页当前摘要及OTA节）：
+首次0.1.0基线镜像（历史记录；当前0.2.1镜像/功能见本页最上节）：
 
 - 路径：`build/wrover_radio_node.bin`
 - 文件大小：**173328 字节**（约 169.3 KiB）；生成的标准 1 MiB 应用分区余量约 83%。设备实际保留原 1344 KiB factory 槽，本次镜像已在该槽实测启动。

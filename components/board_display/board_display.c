@@ -44,6 +44,25 @@ enum {
 static const char *TAG = "board_display";
 static atomic_bool started = false;
 static atomic_uint last_frame_tick = 0;
+#if CONFIG_LISP_REPL_ENABLE
+static portMUX_TYPE terminal_lock = portMUX_INITIALIZER_UNLOCKED;
+static lcd_terminal_t terminal_snapshot;
+esp_err_t board_display_terminal_update(const lcd_terminal_t *terminal)
+{
+    if (terminal == NULL || terminal->input_cursor >= LCD_TERMINAL_COLUMNS)
+        return ESP_ERR_INVALID_ARG;
+    portENTER_CRITICAL(&terminal_lock);
+    terminal_snapshot = *terminal;
+    portEXIT_CRITICAL(&terminal_lock);
+    return ESP_OK;
+}
+#else
+esp_err_t board_display_terminal_update(const lcd_terminal_t *terminal)
+{
+    (void)terminal;
+    return ESP_ERR_NOT_SUPPORTED;
+}
+#endif
 
 bool board_display_is_healthy(void)
 {
@@ -186,10 +205,19 @@ static esp_err_t begin_display(display_context_t *context)
     return ESP_OK;
 }
 
+#if CONFIG_LISP_REPL_ENABLE
+static esp_err_t draw_frame(display_context_t *context, const lcd_terminal_t *view)
+#else
 static esp_err_t draw_frame(display_context_t *context, const display_probe_view_t *view)
+#endif
 {
     for (unsigned y = 0; y < DISPLAY_HEIGHT; y += DISPLAY_STRIP_ROWS) {
-        if (!display_probe_render_strip(context->strip, STRIP_BYTES, y, DISPLAY_STRIP_ROWS, view)) {
+#if CONFIG_LISP_REPL_ENABLE
+        bool rendered = lcd_terminal_render_strip(view, context->strip, STRIP_BYTES, y, DISPLAY_STRIP_ROWS);
+#else
+        bool rendered = display_probe_render_strip(context->strip, STRIP_BYTES, y, DISPLAY_STRIP_ROWS, view);
+#endif
+        if (!rendered) {
             return ESP_ERR_INVALID_ARG;
         }
         esp_err_t error = esp_lcd_panel_draw_bitmap(context->panel, 0, (int)y, DISPLAY_WIDTH,
@@ -247,6 +275,12 @@ static void display_task(void *argument)
     uint32_t total_frames = 0;
     TickType_t last_frame = xTaskGetTickCount();
     while (error == ESP_OK) {
+#if CONFIG_LISP_REPL_ENABLE
+        lcd_terminal_t view;
+        portENTER_CRITICAL(&terminal_lock);
+        view = terminal_snapshot;
+        portEXIT_CRITICAL(&terminal_lock);
+#else
         wifi_scan_snapshot_t wifi = wifi_scan_initial();
         (void)wifi_service_get_snapshot(&wifi);
         wifi_link_snapshot_t link = wifi_link_initial();
@@ -260,6 +294,7 @@ static void display_task(void *argument)
             .wifi = wifi,
             .link = link,
         };
+#endif
         error = draw_frame(context, &view);
         if (error != ESP_OK) {
             break;
@@ -270,14 +305,22 @@ static void display_task(void *argument)
         if (error == ESP_OK)
             atomic_store(&last_frame_tick, (unsigned)xTaskGetTickCount());
         total_frames++;
+#if CONFIG_LISP_REPL_ENABLE
+        if (total_frames % 50 == 1) {
+#else
         if (total_frames % 10 == 1) {
+#endif
             ESP_LOGI(TAG, "driver=%s submitted_frames=%lu heap=%lu internal=%u stack_low=%u bytes",
-                     display_probe_model_name(view.model), (unsigned long)total_frames,
-                     (unsigned long)view.free_heap_bytes,
+                     display_probe_model_name(DISPLAY_ILI9341), (unsigned long)total_frames,
+                     (unsigned long)esp_get_free_heap_size(),
                      (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
                      (unsigned)uxTaskGetStackHighWaterMark(NULL));
         }
+#if CONFIG_LISP_REPL_ENABLE
+        xTaskDelayUntil(&last_frame, pdMS_TO_TICKS(200));
+#else
         xTaskDelayUntil(&last_frame, pdMS_TO_TICKS(1000));
+#endif
     }
     atomic_store(&last_frame_tick, 0);
     ESP_LOGE(TAG, "LCD diagnostic stopped: %s; heartbeat remains independent", esp_err_to_name(error));
@@ -291,6 +334,9 @@ esp_err_t board_display_start(void)
     if (!atomic_compare_exchange_strong(&started, &expected, true)) {
         return ESP_ERR_INVALID_STATE;
     }
+#if CONFIG_LISP_REPL_ENABLE
+    lcd_terminal_init(&terminal_snapshot);
+#endif
     display_context_t *context = calloc(1, sizeof(*context));
     if (context == NULL) {
         atomic_store(&started, false);
@@ -312,6 +358,11 @@ esp_err_t board_display_start(void)
 }
 
 #else
+esp_err_t board_display_terminal_update(const lcd_terminal_t *terminal)
+{
+    (void)terminal;
+    return ESP_ERR_NOT_SUPPORTED;
+}
 bool board_display_is_healthy(void)
 {
     return false;

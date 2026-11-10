@@ -1,0 +1,20 @@
+menu "LispBM REPL"
+    config LISP_REPL_ENABLE
+        bool "Enable RAM-only LispBM UART REPL and LCD terminal"
+        depends on BOARD_DISPLAY_ENABLE && BOARD_WROVER_KIT_V41_CONFIRMED && SPIRAM
+        default n
+        help
+            Experimental, opt-in. Uses UART0/115200 and the confirmed LCD.
+            Lisp state and the upstream image are RAM-only. No NVS, filesystem,
+            Bluetooth, DSP or GPIO extensions. Ctrl-C resets the Lisp environment.
+            Requires a separately installed pinned LispBM checkout (GPLv3+).
+    config WIFI_REPL_ENABLE
+        bool "Enable plain TCP REPL on port2323 (no TLS/token)"
+        depends on LISP_REPL_ENABLE && WIFI_SERVICE_CONNECT_ENABLE
+        default n
+        help
+            No certificate, token or login. Anyone on the reachable LAN can
+            execute RAM-only Lisp; use only on a trusted LAN, never public.
+            Connect with nc DEVICE_IP 2323. One client, original Lisp owner and
+            LCD output. OTA keeps its separate HTTPS certificate and token.
+endmenu

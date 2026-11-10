@@ -1,16 +1,49 @@
-# Wi-Fi 刷机：双槽 HTTPS OTA（0.1.7已通过真实Wi-Fi部署并验收）
+# Wi-Fi刷机：双槽HTTPS OTA（当前0.2.4 B/VALID）
 
-**当前0.1.7-ota-wifi / B（0x160000），明确VALID；阶段已关闭。** 用户批准新四项hash后一次USB安装0.1.6入口；180.047秒启动及TLS状态通过、用户确认LCD无翻转，随后**仅一次真正HTTPS POST上传1014048字节的0.1.7（HTTP200），无重传、无UART写B**。设备软件重启进入B，38686ms完成30秒连续健康确认。270.037秒过渡采集包含完整升级和B首次启动，之后保护核验通过，再正常RTS复位180.024秒、真实固定证书认证状态及镜像内容hash/槽/online/healthy/VALID再次匹配。
+**当前0.2.4-boot-info-ota / B（0x160000）/ VALID/healthy/online，安静启动与IP/端口提示只读观察通过。** 用户批准a068d068.../B镜像[160000,26e320)、擦写[160000,26f000)/271扇区及标准SDK控制[c000,e000)后唯一POST/HTTP200写1106720字节，38836ms完成30秒连续健康确认。A0.2.3完整保留备用，无重传/USB镜像写入。
+
+最终正常B启动180.146秒只读采集，版本/USB115200/IP/TCP2323/nc/OTA8443各一次，无自动help/测试eval/远程输入回显；没有发UART/TCP表达式，单次实际健康probe仍保留且成功静默。帧1→851/心跳日志0→177，最后GET版本/SDKhash/B/healthy/online/VALID匹配。LCD整串提交不等于目视；UART初始connecting行可被SDK插入，最终IP/端口/nc原始行完整。
+
+B/padding、3补集/完整A、8字段、实读seq5/6 VALID/CRC及完整4MiB预期匹配，A控制扇区不变。**所有保护核验在最终正常B观察前，此后只读HTTPS；最新参考 `.local/flash/boot-info-2026-11-10/post-protection/current-0.2.4-expected.bin` 为重建实际SDK匹配，非新双读。** 全部权限耗尽，下一非运行A需新准确批准。从今启动观察只读，交互测试需用户另外明确要求，不自动eval。
+
+## 历史0.2.3 A验收（当前A备用）
+
+**当前0.2.3-tcp-repl-ota / A（0x10000）/ VALID/healthy/online，无认证TCP2323 REPL已通过24项真实测试（含nc），UART12项/正常A启动180.049秒通过。** 用户准确批准30e3d441.../A镜像[10000,11e100)、擦写[10000,11f000)/271扇区及标准SDK控制[c000,e000)后唯一POST/HTTP200写1106176字节，38806ms完成30秒健康确认，无重传/USB镜像写入。B0.2.2完整保留备用。
+
+写前新同板/8字段/实际完整0.2.2基线、采集后观察B/HTTPS就绪再最终TLS检查通过。写后A/padding、3补集/完整B、8字段和实读seq5/4 VALID/CRC及完整4MiB预期匹配，B控制扇区不变。**保护检查在最终正常A180秒测试前，之后只读HTTPS；最新参考 `.local/flash/tcp-repl-2026-11-10/post-protection/current-0.2.3-expected.bin` 为重建且实际SDK匹配，非新双读。**
+
+所有写权限已耗尽；下一非运行B会替换备用0.2.2，需新准确hash/范围批准。REPL无cert/token，但OTA8443原TLS/Bearer完全保留；只可信LAN，见 [WIFI_REPL.md](WIFI_REPL.md)。
+
+## 历史0.2.2 B验收（现已被新B替换）
+
+**当前 `0.2.2-wifi-repl-ota` / B（0x160000），VALID/healthy/online；Wi-Fi HTTPS8443认证POST/repl已实测17项，原UART12项保留。** 用户续批准确1dee2fed.../B[160000,26f000)/标准控制[c000,e000)后唯一真实POST/HTTP200写1106880字节，38688ms完成30秒连续健康确认。之前一次前置GET阻断POST=0，不混计重传。
+
+写前新同板/8字段/实际4MiB0.2.1基线通过；先开采集、观察启动/HTTPS就绪再最终TLS预检。写后B/padding、3补集/完整A0.2.1、8字段和实际seq3/4 VALID/CRC、完整4MiB重建预期匹配，A控制扇区不变。正常B重启180.103秒后最终固定证书状态版本/内容hash/B/online/healthy/VALID通过。**保护检查在最终正常重启前，之后只读HTTPS；当前参考为 `.local/flash/wifi-repl-2026-11-10/renewed-approval/post-protection/current-0.2.2-expected.bin`，重建实际SDK匹配，非新双读。**
+
+新旧写权限全部耗尽，下一非运行槽是A，会替换保留0.2.1，须新准确hash/范围批准；不USB恢复/重传。网络协议/实测限制见 [WIFI_REPL.md](WIFI_REPL.md)。
+
+## 历史0.2.1 A验收（现已被新A替换）
+
+2026-11-10新准确批准的70932bf410f4bbebec4c4f53e9f4020f1f3866f0f1df943f377273ba20eb8c83经唯一POST/HTTP200写A，1104672字节/270扇区 `[0x10000,0x11e000)`，另仅SDK控制 `[0xc000,0xe000)` 生命周期更新。8字节对齐、实际启动求值probe、健康确认通过；正常A重启后12项UART测试和180.052秒观察、最终固定证书HTTPS版本/内容hash/槽/online/healthy/VALID通过。B0.1.7、bootloader/表/NVS/free/旧数据及补集均未改，控制seq3/seq2均VALID、CRC有效、B控制扇区未变。
+
+完整4MiB重建预期及8字段核验在最后A正常启动/REPL测试前；之后只读HTTPS，不声称再核验Flash。当前私有参考 `.local/flash/lisp-2026-11-10-aligned/post-protection/current-0.2.1-expected.bin` 是重建且实际SDK匹配，非新双读。全部旧/新写入许可已消费。先前0.2.0初始化失败的自然回退已验证，受控故障注入/断电仍未验收；新终端目视不冒充通过。详情 [LISP_REPL.md](LISP_REPL.md)。
+
+## 0.1.7首次Wi-Fi验收历史
+
+当时0.1.7-ota-wifi / B（0x160000）明确VALID，旧阶段已关闭。 用户批准新四项hash后一次USB安装0.1.6入口；180.047秒启动及TLS状态通过、用户确认LCD无翻转，随后**仅一次真正HTTPS POST上传1014048字节的0.1.7（HTTP200），无重传、无UART写B**。设备软件重启进入B，38686ms完成30秒连续健康确认。270.037秒过渡采集包含完整升级和B首次启动，之后保护核验通过，再正常RTS复位180.024秒、真实固定证书认证状态及镜像内容hash/槽/online/healthy/VALID再次匹配。
 
 Wi-Fi后B应用及3补集digest、8安全字段、实际完整4MiB重建预期均通过；seq1/seq2均VALID且CRC有效，A控制扇区不变。**保护核验在最终正常B启动前，不声称之后再次读取Flash。** 所有3项USB与一次Wi-Fi写入授权均已消耗，不可自动重刷/恢复。
 
-## 当前接口与认证边界
+## 当前0.2.4设备接口与认证边界
+
+REPL已经改为明文TCP2323/nc，无证书/token/登录，旧HTTPS/repl路由已删除；OTA本身原TLS证书/Bearer完全保留。
 
 | 接口 | 当前实现 | 实机证据 |
 | --- | --- | --- |
 | `GET /status` | 只读，无需Bearer，客户端仍须校验TLS服务端证书 | 已实测版本、内容hash、运行槽、online/healthy/confirmed |
 | `GET /health` | 与/status共用同一handler和JSON，无需Bearer | 路由/代码已检查，未单独调用实机验收 |
 | `POST /ota` | 必须Bearer；目标槽及镜像hash绑定请求 | 真实唯一POST/HTTP200、重启和VALID通过 |
+| TCP2323 | 无TLS/token/登录；ASCII共享RAM/原owner，nc直接连接 | 0.2.3真实TCP24项仅历史；0.2.4只读确认监听健康/启动提示，不主动eval；详见WIFI_REPL.md |
 
 TLS证书校验的是服务端身份，不等于GET进行了客户端认证。此前GET验收请求携带了Bearer，但handler不校验它。可达局域网的客户端可以读取状态，不向公网开放。GET在成功序列化时返回HTTP200，即使healthy=false；必须判断JSON，不把200当健康。
 
@@ -20,7 +53,7 @@ TLS证书校验的是服务端身份，不等于GET进行了客户端认证。�
 2. 设备用应用内Wi-Fi凭据自动连接，开启HTTPS8443：只读GET无需Bearer，上传POST必须Bearer；没有配网、文件浏览或任意命令服务。
 3. 电脑使用固定证书验证服务端，用独立随机 32 字节 token 认证，只向非运行槽上传应用。没有明文 HTTP、`-k` 或外网暴露/端口映射。
 4. 上传长度受限，检查目标槽、项目名、芯片、IDF 版本、整个上传体 SHA-256 及 SDK 镜像完整性；只有全部通过才切换启动记录并重启。中断不覆盖运行槽。元数据提交失败后拒绝再次上传，须停止检查，不盲目重试。
-5. 新固件的 PSRAM 自检、近期心跳/队列投递、LCD 提交、联网及 HTTPS 服务连续健康 30 秒才确认。待验证启动 120 秒仍未确认时请求重启，由新 bootloader 回退；初始化任务分配失败会重启，启动挂死由 watchdog 处理。**尚未实测回退/受控断电，不能声称所有故障均能自动恢复。**
+5. 新固件的 PSRAM 自检、近期心跳/队列投递、LCD 提交、联网及 HTTPS 服务连续健康 30 秒才确认。待验证启动 120 秒仍未确认时请求重启，由新 bootloader 回退；初始化任务分配失败会重启，启动挂死由 watchdog 处理。后续0.2.0自然初始化失败已实际回退，但受控故障注入/断电仍未验收，不能声称所有故障均能自动恢复。
 
 不是固件签名或安全启动方案，eFuse、Flash 加密及 anti-rollback 均不启用。用于可信局域网，不是公开互联网设备管理服务。
 
@@ -76,7 +109,7 @@ bb scripts/ota_upload.bb \
   --evidence-dir .local/evidence/ota/unique-upload-directory
 ```
 
-当前运行B，下一次经新批准的更新目标应为非运行A（`0x10000`）；刚完成的历史0.1.7上传目标才是B（`0x160000`）。示例不是新写入许可，不重放已消费的hash或证据目录。
+当前运行B0.2.4，下一次经新准确批准的目标应为非运行A（`0x10000`），会替换备用0.2.3，必须先告知/批准新hash和范围。历史0.1.7/0.2.2/本次0.2.4目标为B，0.2.1/0.2.3目标为A。示例不是新写入许可，不重放已消费的hash或证据目录。
 
 实际只发 **一次 POST**，目标地址也随请求明确绑定，避免预检查后设备换槽导致写错授权范围。token 只进临时 0600 curl 配置，用完删除，不进进程参数。固定证书和 HTTPS 主机名经 curl connect-to 对应当前 IP，无须改 DNS/路由或安装全局 CA。
 
@@ -92,7 +125,7 @@ bb scripts/ota_upload.bb \
 
 0.1.6完成180秒采集后用户确认无翻转，再执行一次Wi-Fi更新。0.1.7两次启动均仅ILI9341，首次帧1→221、最终帧1→171、栈最低3992字节；这些日志不等于助手完成新B全程目视检查，也不证明所有原始物理原因已被排除。
 
-## 已验证 / 尚未验证
+## 历史0.1.7已验证 / 当时尚未验证
 
 - 45 项 C ASan/UBSan，15 项 Python（含官方分区生成器 4 项），上传工具 4 个 mock 场景通过。
 - mock 覆盖成功、丢 ACK 后只查询、未确认当前镜像拒传、401 不重试；**不是实机网络测试**。
@@ -103,4 +136,4 @@ bb scripts/ota_upload.bb \
 - **双B启动 PASS**：PSRAM128KiB六模式、两轮9341、US/1–11/MANUAL、一次嵌入加载、首次关联/DHCP、心跳/LCD/HTTPS持续进度、无故障日志。首次B持续约220秒LCD跨度，最终正常B独立180.024秒采集。不是十分钟长测。
 - **尚未验证** 实际失败回退/故障注入、受控断电、完整8MiB PSRAM、新十分钟soak、真实Wi-Fi掉线恢复及WPA3细节。自动确认已实测不代表回退已实测。
 
-已部署冻结产物与关闭检查点：`.local/flash/ota-2026-11-08-lcd-fixed/`。无 SD、OTA 分区/bootloader 网络升级、Agent、BLE、LoRa、uLisp。不自动 commit/push。
+0.1.7历史冻结检查点：`.local/flash/ota-2026-11-08-lcd-fixed/`；当前0.2.4检查点为 `.local/flash/boot-info-2026-11-10/`，不改任何历史冻结档案。无 SD、OTA 分区/bootloader 网络升级、Agent、BLE、LoRa、uLisp。不自动 commit/push。

@@ -1,0 +1,8 @@
+if(CONFIG_LISP_REPL_ENABLE)
+    include("${CMAKE_CURRENT_LIST_DIR}/../../cmake/lispbm.cmake")
+    wrover_lispbm_sources(lbm_sources)
+    idf_component_register(SRCS ${lbm_sources} INCLUDE_DIRS "${LISPBM_SOURCE_DIR}/include" "port")
+    target_compile_definitions(${COMPONENT_LIB} PUBLIC LBM_SINGLE_THREADED)
+else()
+    idf_component_register()
+endif()
