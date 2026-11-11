@@ -2,13 +2,35 @@
 
 ESP-WROVER-KIT v4.1 / 经典 ESP32 的 ESP-IDF 固件：FreeRTOS、PSRAM、ILI9341、自动 Wi-Fi、USB固件更新与 RAM-only LispBM REPL。
 
-## 当前设备：0.5.3 应用与LCD目标周期100ms（factory已部署）
+## 当前设备：0.5.6 条带转换优化（factory已部署）
+
+准确批准SHA256 `b6eb17035f6ef25c6f21fa4cd015f121742983b562edb4bc21170dc1d61cb550`／1,197,216字节／`[0x10000,0x135000)`／293扇区。首次预检串口无sync，**写入0**；用户重插后新同板/8字段/实际完整0.5.5基线与旧引导通过，唯一USB应用写入66.4秒，app/FFpadding/全部补集/8字段/实际完整4MiB保护通过，无写重试/OTA/恢复或引导/表/NVS/eFuse写入。180.198秒正常启动只读通过。
+
+随后同方法实际运行Tiny2D与空present各50回调：Tiny2D LCD条带转换平均从0.5.5的66.006ms降至50.233ms，LCD整帧从197.100ms降至182.330ms；提交与等待仍约131.783ms。设备侧墙钟含调度和诊断开销，不是纯CPU或物理LCD FPS；不同任务范围重叠，不能跨行相加。详见 [计时诊断](docs/PERF_DIAGNOSTICS.md)。
+
+最新私有`.local/flash/strip-0.5.6/post-protection/current-0.5.6-expected.bin`重建且实际完整SDK匹配，非新双读；所有Flash/security检查在只读启动前，此后诊断没有再读Flash/security。写权限耗尽，UART/TCP释放；候选基于未提交工作树及base commit `59eed25`，详见 [单槽USB](docs/SINGLE_APP_USB.md)。
+
+## 历史0.5.5 前台应用计时诊断（已被0.5.6替换）
+
+准确批准SHA256 `ff6fb7033d5671d83d4217c053cff68064aeb46ae1fab42e44fef0be493c2593`／1,197,120字节／`[0x10000,0x135000)`／293扇区后，唯一USB应用写入66.4秒。新同板/8字段/实际完整0.5.4基线及旧引导、写后app/FFpadding/全部补集/8字段和实际完整4MiB均通过；无OTA/重试/恢复或引导/表/NVS/eFuse写入。一次正常启动180.073秒只读通过，factory/0.5.5/冻结ELF前缀91f024584/probe PASS、PSRAM六模式、ILI9341帧1→1051、联网后34条healthy。
+
+随后按用户请求用一次TCP连接实际运行Tiny2D与空present各50回调并读取设备侧计时：Tiny2D平均LCD整帧197.100ms、条带转换66.006ms、提交与等待130.817ms、画布draw/复制32.216ms；这些是含调度和仪表开销的墙钟，不同任务区间重叠，不能跨行相加，非物理LCD FPS。数据见 [计时诊断](docs/PERF_DIAGNOSTICS.md)；随后条带优化已随0.5.6部署。
+
+当时私有`.local/flash/perf-0.5.5/post-protection/current-0.5.5-expected.bin`重建且实际完整SDK匹配，非新双读；已被0.5.6替换，不再代表当前全片。写权限耗尽，UART/TCP释放；候选构建时基于未提交工作树及base commit `59eed25`。详情见 [单槽USB](docs/SINGLE_APP_USB.md)。
+
+## 历史0.5.4 清屏与矩形优化（已被0.5.5替换）
+
+准确批准SHA256 `5d876c17b549ea7bb1c94b9616a89244741c33b6800d7e38703c3fa551c91f3d`／1,194,800字节／`[0x10000,0x134000)`／292扇区后，唯一USB应用写入66.3秒。新同板/8字段/实际完整0.5.3基线和旧引导、写后app/FFpadding/全部补集/8字段及实际完整4MiB预期均通过；无OTA、重试、恢复或引导/表/NVS/eFuse写入。
+
+一次正常启动180.025秒只读通过：factory/0.5.4/冻结ELF前缀d6aba6efe、2138ms ready/probe PASS、PSRAM六模式、ILI9341帧1→1051/心跳0→177、联网后34条healthy。该次验收没有UART/TCP表达式或URL/demo；后续按用户请求RAM复测，Tiny2D绘制标记段由0.5.3的75.24ms降至59.69ms，但逻辑周期从187.98ms变为197.29ms，未观察到整体回调率提升；物理LCD FPS未测。当时私有参考`.local/flash/raster-0.5.4/post-protection/current-0.5.4-expected.bin`重建且实际完整SDK匹配，非新双读；后续已被0.5.5替换，不再代表当前全片。写权限耗尽，UART/TCP释放；候选构建时基于未提交工作树及base commit `59eed25`，详见 [单槽USB](docs/SINGLE_APP_USB.md)。
+
+## 历史0.5.3 应用与LCD目标周期100ms（已被0.5.4替换）
 
 准确批准SHA256 `f357c1b37a6ca67e982d7da0bfc51fb250e0b8547adb24096ab03563a1c4bfe8`／1,194,736字节／`[0x10000,0x134000)`／292扇区后，唯一USB应用写入66.1秒。新同板/8字段/实际完整0.5.2基线及旧引导、写后app/FFpadding/所有补集/8字段/实际完整4MiB均通过；无引导/表/NVS/eFuse/OTA写入、重试或恢复。
 
-一次正常启动180.146秒只读通过：factory/0.5.3/冻结ELF前缀8e1379d54、ready/probe PASS、PSRAM六模式、ILI9341帧1→1051/心跳0→177、联网后34条healthy。终端状态下submitted_frames从1@2718ms到1051@179288ms，约5.95次/秒，含重复帧，不是实际动画或目视FPS；100ms目标不保证10FPS。本次没有UART/TCP表达式、URL或demo，复位已清除RAM定义。
+一次正常启动180.146秒只读通过：factory/0.5.3/冻结ELF前缀8e1379d54、ready/probe PASS、PSRAM六模式、ILI9341帧1→1051/心跳0→177、联网后34条healthy。终端状态下submitted_frames从1@2718ms到1051@179288ms，约5.95次/秒，含重复帧，不是实际动画或目视FPS；100ms目标不保证10FPS。该次启动验收没有UART/TCP表达式、URL或demo，复位清除RAM定义；随后按用户请求通过URL加载Tiny2D并完成RAM profiling，约5.32逻辑回调/秒，空present对照约5.61次/秒，均非物理LCD FPS。后续组件标记对照提示清屏与矩形耗时较明显，见 [应用层](docs/LISP_APPS.md)。
 
-最新私有`.local/flash/period-100ms-0.5.3/post-protection/current-0.5.3-expected.bin`重建且实际完整SDK匹配，非新双读；全部Flash/security核验在最后启动前，此后仅UART采集与本地解析。全部写权限耗尽，UART释放，无后台监控。构建来自未提交工作树及base commit `3811321`，完整源码快照已冻结；详情见 [单槽USB](docs/SINGLE_APP_USB.md)。
+当时私有`.local/flash/period-100ms-0.5.3/post-protection/current-0.5.3-expected.bin`重建且实际完整SDK匹配，非新双读；0.5.3部署核验后曾按请求做RAM profiling，后续已被0.5.4替换，不再是当前完整基线。全部写权限耗尽，UART释放，无后台监控。构建时来自未提交工作树及base commit `3811321`，完整源码快照已冻结；源码后来提交`59eed25`，不是候选构建时提交。详情见 [单槽USB](docs/SINGLE_APP_USB.md)。
 
 ## 历史0.5.2 帧预算修复（已被0.5.3替换）
 
@@ -131,7 +153,7 @@ HTTPS8443认证 `POST /repl`，原token/TLS，无新裸TCP监听/WebSocket/浏�
 
 ## 构建与测试
 
-ESP-IDF 固定 **v5.5.6** / commit `880a203ae603d08a94d06aa01e0d6761958e5e9e`。源码默认版本已改为 **0.3.0-single-usb**，默认单槽USB更新模式，可选PSRAM/LCD/Wi-Fi/Lisp仍需明确启用。0.3.0完成单槽迁移，0.4.0启用Lisp应用层，当前0.5.0通过一次USB应用更新启用URL loader；源码默认关闭配置不等于板上full配置。
+ESP-IDF 固定 **v5.5.6** / commit `880a203ae603d08a94d06aa01e0d6761958e5e9e`。源码默认版本已改为 **0.3.0-single-usb**，默认单槽USB更新模式，可选PSRAM/LCD/Wi-Fi/Lisp仍需明确启用。0.3.0完成单槽迁移，0.4.0启用Lisp应用层，0.5.0启用URL loader，当前板上为0.5.6；源码默认关闭配置不等于板上full配置。
 
 ```sh
 umask 077
@@ -157,8 +179,8 @@ URL源码两主机模型各149项C ASan/UBSan、28Python、4历史mock、六配�
 | [OTA](docs/OTA.md) | 旧双槽HTTPS与历史升级记录；当前单槽不再使用 |
 | [构建](docs/BUILD.md) | 固定工具链、默认关闭与 OTA 配置、测试 |
 | [LispBM REPL](docs/LISP_REPL.md) | 当前UART/LCD与首次失败/修复历史 |
-| [LispBM 应用层](docs/LISP_APPS.md) | 已部署配置；全屏绘图/生命周期/恢复终端，实机切换待交互 |
-| [URL 应用加载](docs/APP_URL_LOADING.md) | 已部署配置；HTTPS→RAM／状态／取消，实际URL交互未测 |
+| [LispBM 应用层](docs/LISP_APPS.md) | 已部署配置；Tiny2D实际运行并退出，LCD目视待验收 |
+| [URL 应用加载](docs/APP_URL_LOADING.md) | 已部署配置；HTTPS→RAM／状态／取消，已实际加载Tiny2D，其他边界未测 |
 | [蓝牙键盘调研](docs/BLUETOOTH_KEYBOARD.md) | 离线HID Host选型、配对/NVS阻断与最小输入接入方案；尚未实现 |
 | [Wi-Fi REPL](docs/WIFI_REPL.md) | 当前无认证TCP2323/nc协议与原owner/RAM边界 |
 | [测试结果](docs/TEST_RESULTS.md) | 当前与历史 PASS / NOT TESTED |
@@ -195,4 +217,4 @@ tests/                      主机测试及独立构建配置
 docs/                       当前说明与明确分版的历史记录
 ```
 
-当前私有检查点 `.local/flash/period-100ms-0.5.3/`；先读execution-CONTINUE/execution-resume/acceptance-summary。`post-protection/current-0.5.3-expected.bin`是重建且实际完整SDK摘要匹配的4MiB预期，**不是新双读备份**，所有保护在最后正常启动之前。旧0.5.2及更早全片不再代表当前应用；冻结candidate/source/PENDING历史不改，实际authorization/marker/验收另存。
+当前私有检查点 `.local/flash/strip-0.5.6/`；先读execution-CONTINUE-replug、preflight-blocked、acceptance-summary及`target-timing/analysis.md`。`post-protection/current-0.5.6-expected.bin`是重建且实际完整SDK摘要匹配的4MiB预期，**不是新双读备份**，所有保护在部署只读启动之前。旧0.5.5及更早全片不再代表当前应用；冻结candidate/source/PENDING历史及首次阻断记录不改，执行验收另存。

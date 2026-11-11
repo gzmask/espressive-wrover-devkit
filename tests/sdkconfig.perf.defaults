@@ -1,0 +1,2 @@
+# Diagnostic-only app/LCD timing. Not an authorization to deploy.
+CONFIG_LISP_PERF_TRACE=y

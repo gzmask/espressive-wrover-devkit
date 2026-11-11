@@ -1,8 +1,15 @@
 # 测试记录
 
-硬件初检：2026-11-07 01:14 UTC；当前设备记录截止2026-11-10，LCD终端目视仍待反馈。状态采用PASS / FAIL / NOT TESTED；历史未实现/旧端口只属于对应版本，不能当作当前限制或新写入许可。
+硬件初检：2026-11-07 01:14 UTC。状态采用PASS / FAIL / NOT TESTED；历史未实现/旧端口只属于对应版本，不能当作当前限制或新写入许可。
 
-## 当前0.5.0 factory：一次USB应用更新／只读启动通过，URL交互未测
+## 当前0.5.6 factory：条带优化与目标计时
+
+- **PASS（写入与保护）** — 首次预检无sync、应用写入0；用户重插后，新同板/8字段/实际完整0.5.5基线/旧引导通过，唯一USB应用写入及app/FFpadding/全部补集/8字段/实际完整4MiB预期匹配。无写重试/OTA/恢复或引导/表/NVS/eFuse写入。
+- **PASS（正常启动只读180.198秒）** — factory/0.5.6/冻结ELF前缀匹配、ready/probe PASS、PSRAM六模式、ILI9341帧1→1051、联网后34条healthy。Flash/security检查均在启动前。
+- **PASS（有限交互）** — 随后通过TCP实际HTTPS加载Tiny2D，Tiny2D与空present各完成50绘制回调并自行退出、恢复终端。设备侧Tiny2D条带转换平均66.006→50.233ms，LCD整帧197.100→182.330ms；含调度/仪表开销，不是物理FPS。详见 [计时诊断](PERF_DIAGNOSTICS.md)。
+- **NOT TESTED** — LCD独立目视/颜色/撕裂/物理FPS、UART控制、TCP按键/中断、真实断网或TLS故障注入、完整PSRAM压力及长测。UART/TCP已释放，无剩余写权限。最新参考`.local/flash/strip-0.5.6/post-protection/current-0.5.6-expected.bin`重建且实际SDK匹配，非新双读。
+
+## 历史0.5.0 factory：一次USB应用更新／只读启动通过，URL交互当时未测
 
 - **PASS（唯一写入）** — 准确批准5a8bb890.../1194400字节/[10000,134000)/292扇区，新同板/8字段/实际完整0.4.0基线及旧引导通过后，新marker唯一USB应用写入66.2秒；无引导/表/NVS/reserved控制/eFuse写入、OTA POST、重试或恢复。
 - **PASS（保护）** — 新应用/FFpadding、完整引导/表/NVS/reserved/free/旧B/旧数据及全部补集、8字段与实际完整4MiB预期匹配。current-0.5.0-expected.bin为重建/实际SDK匹配，非新双读；全部Flash/security检查在最后正常启动前，之后只有UART采集和本地整理，未再读Flash/HTTPS。

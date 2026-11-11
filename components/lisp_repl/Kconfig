@@ -17,6 +17,15 @@ menu "LispBM REPL"
             (300 KiB). Original Lisp and LCD tasks retain sole ownership.
             UART Ctrl-C stops the app; TCP :stop and :key X remain available.
             No filesystem, persistent loader, GPIO, Bluetooth or DSP.
+    config LISP_PERF_TRACE
+        bool "Enable opt-in RAM app and LCD timing diagnostics"
+        depends on LISP_APP_ENABLE
+        default n
+        help
+            Diagnostic build only. Explicit :perf-start and :perf-stop bracket
+            a session; bounded in-memory aggregates are printed once at stop.
+            Samples are wall times and instrumentation changes scheduling.
+            No per-frame output, persistent storage or automatic activation.
     config LISP_APP_URL_ENABLE
         bool "Enable HTTPS URL to RAM application loading"
         depends on LISP_APP_ENABLE && WIFI_SERVICE_CONNECT_ENABLE

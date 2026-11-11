@@ -1,0 +1,6 @@
+set(perf_sources "lisp_perf_stats.c" "lisp_perf_report.c")
+if(CONFIG_LISP_PERF_TRACE)
+    list(APPEND perf_sources "lisp_perf.c")
+endif()
+idf_component_register(SRCS ${perf_sources} INCLUDE_DIRS "include" PRIV_REQUIRES esp_timer freertos)
+target_compile_options(${COMPONENT_LIB} PRIVATE -Wall -Wextra -Werror -Wconversion -Wshadow)

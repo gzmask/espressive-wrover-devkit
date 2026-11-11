@@ -1,6 +1,13 @@
 #include "lisp_app_runtime.h"
+#ifdef ESP_PLATFORM
+#include "sdkconfig.h"
+#endif
 #include <limits.h>
 #include <string.h>
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+#include "lisp_perf.h"
+static lisp_perf_token_t callback_timing, backpressure_timing;
+#endif
 
 enum {
     APP_STEP_BATCH = 64,
@@ -91,6 +98,10 @@ lisp_app_command_t lisp_runtime_app_control(const char *source, size_t length)
 }
 static void begin_restore(void)
 {
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    callback_timing.active = false;
+    backpressure_timing.active = false;
+#endif
     draw_pixels = NULL;
     if (attached)
         display.restore(display.user);
@@ -216,7 +227,13 @@ static lbm_value gfx_clear(lbm_value *arguments, lbm_uint count)
         return ENC_SYM_TERROR;
     if (!drawing())
         return ENC_SYM_EERROR;
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    lisp_perf_token_t timing = job == APP_STEP ? lisp_perf_begin() : (lisp_perf_token_t){0};
+#endif
     lisp_app_clear(draw_pixels, (uint16_t)values[0]);
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    lisp_perf_end(LISP_PERF_CLEAR, timing);
+#endif
     dirty = true;
     return ENC_SYM_TRUE;
 }
@@ -249,7 +266,13 @@ static lbm_value gfx_rect(lbm_value *arguments, lbm_uint count)
         return ENC_SYM_TERROR;
     if (!drawing())
         return ENC_SYM_EERROR;
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    lisp_perf_token_t timing = job == APP_STEP ? lisp_perf_begin() : (lisp_perf_token_t){0};
+#endif
     lisp_app_rect(draw_pixels, values[0], values[1], values[2], values[3], (uint16_t)values[4]);
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    lisp_perf_end(LISP_PERF_RECT, timing);
+#endif
     dirty = true;
     return ENC_SYM_TRUE;
 }
@@ -268,7 +291,13 @@ static lbm_value gfx_text(lbm_value *arguments, lbm_uint count)
             return ENC_SYM_TERROR;
     if (!drawing())
         return ENC_SYM_EERROR;
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    lisp_perf_token_t timing = job == APP_STEP ? lisp_perf_begin() : (lisp_perf_token_t){0};
+#endif
     lisp_app_text(draw_pixels, (int)x, (int)y, text, size - 1, (uint16_t)color);
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    lisp_perf_end(LISP_PERF_TEXT, timing);
+#endif
     dirty = true;
     return ENC_SYM_TRUE;
 }
@@ -331,6 +360,9 @@ static bool start_callback(app_job_t kind, int event)
     callback_active = true;
     callback_done = callback_error = callback_exit = false;
     started_ms = clock_ms;
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    callback_timing = kind == APP_STEP ? lisp_perf_begin() : (lisp_perf_token_t){0};
+#endif
     dirty = false;
     lisp_runtime_limit_output(APP_LOG_BYTES);
     return true;
@@ -366,6 +398,10 @@ static void has_context(eval_context_t *context, void *found, void *unused)
 }
 static void finish_callback(void)
 {
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    lisp_perf_end(LISP_PERF_CALLBACK, callback_timing);
+    callback_timing.active = false;
+#endif
     callback_done = false;
     draw_pixels = NULL;
     bool remaining = false;
@@ -474,8 +510,18 @@ void lisp_app_runtime_step(uint64_t now_ms)
         }
         return;
     }
-    if ((key_count == 0 && clock_ms < next_tick_ms) ||
-        display.state(display.user) != LISP_APP_DISPLAY_DRAWABLE)
+    if (key_count == 0 && clock_ms < next_tick_ms)
+        return;
+    lisp_app_display_state_t display_status = display.state(display.user);
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    if (display_status != LISP_APP_DISPLAY_DRAWABLE && key_count == 0 && !backpressure_timing.active)
+        backpressure_timing = lisp_perf_begin();
+    if (display_status == LISP_APP_DISPLAY_DRAWABLE && backpressure_timing.active) {
+        lisp_perf_end(LISP_PERF_BACKPRESSURE, backpressure_timing);
+        backpressure_timing.active = false;
+    }
+#endif
+    if (display_status != LISP_APP_DISPLAY_DRAWABLE)
         return;
     int event = -1; /* Tick; other values are raw 1..127 input bytes. */
     if (key_count) {
@@ -483,7 +529,15 @@ void lisp_app_runtime_step(uint64_t now_ms)
         key_head = (key_head + 1) % APP_KEYS;
         key_count--;
     }
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    if (event == -1)
+        lisp_perf_record(LISP_PERF_TICK_LATE, (clock_ms - next_tick_ms) * 1000);
+    lisp_perf_token_t copy_timing = lisp_perf_begin();
+#endif
     draw_pixels = display.draw(display.user);
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    lisp_perf_end(LISP_PERF_CANVAS_COPY, copy_timing);
+#endif
     if (!draw_pixels || !start_callback(APP_STEP, event)) {
         failed = stop_requested = true;
         log_message("ERROR: cannot start app step callback\n");

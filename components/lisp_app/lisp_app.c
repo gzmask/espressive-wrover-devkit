@@ -106,11 +106,33 @@ void lisp_app_canvas_complete(lisp_app_canvas_t *canvas, const lisp_app_frame_t 
         canvas->terminal_confirmed = true;
 }
 
+/* A valid uint16_t canvas may only be two-byte aligned. Peel one pixel before
+ * writing aligned pairs; may_alias preserves the uint16_t storage aliasing rules. */
+#if defined(__GNUC__) || defined(__clang__)
+typedef uint32_t pixel_pair_t __attribute__((__may_alias__));
+#endif
+static void fill_pixels(uint16_t *pixels, size_t count, uint16_t color)
+{
+    if (count && ((uintptr_t)pixels & 3U)) {
+        *pixels++ = color;
+        count--;
+    }
+#if defined(__GNUC__) || defined(__clang__)
+    uint32_t pair = (uint32_t)color | ((uint32_t)color << 16);
+    pixel_pair_t *pairs = (pixel_pair_t *)(void *)pixels;
+    while (count >= 2) {
+        *pairs++ = pair;
+        count -= 2;
+    }
+    pixels = (uint16_t *)(void *)pairs;
+#endif
+    while (count--)
+        *pixels++ = color;
+}
 void lisp_app_clear(uint16_t *pixels, uint16_t color)
 {
     if (pixels)
-        for (size_t i = 0; i < LISP_APP_PIXELS; i++)
-            pixels[i] = color;
+        fill_pixels(pixels, LISP_APP_PIXELS, color);
 }
 void lisp_app_pixel(uint16_t *pixels, int x, int y, uint16_t color)
 {
@@ -125,9 +147,11 @@ void lisp_app_rect(uint16_t *pixels, int x, int y, int width, int height, uint16
     int left = x < 0 ? 0 : x, top = y < 0 ? 0 : y;
     int r = right > LISP_APP_WIDTH ? LISP_APP_WIDTH : (int)right;
     int b = bottom > LISP_APP_HEIGHT ? LISP_APP_HEIGHT : (int)bottom;
+    if (left >= r || top >= b)
+        return;
+    size_t row_width = (size_t)(r - left);
     for (int yy = top; yy < b; yy++)
-        for (int xx = left; xx < r; xx++)
-            lisp_app_pixel(pixels, xx, yy, color);
+        fill_pixels(pixels + (size_t)yy * LISP_APP_WIDTH + (unsigned)left, row_width, color);
 }
 static bool clip(double p, double q, double *lo, double *hi)
 {
@@ -205,11 +229,37 @@ bool lisp_app_render_strip(const uint16_t *pixels, uint8_t *out, size_t capacity
     if (!pixels || !out || !rows || first_row >= LISP_APP_HEIGHT || rows > LISP_APP_HEIGHT - first_row ||
         capacity < (size_t)rows * LISP_APP_WIDTH * 2)
         return false;
-    size_t offset = (size_t)first_row * LISP_APP_WIDTH;
-    for (size_t i = 0; i < (size_t)rows * LISP_APP_WIDTH; i++) {
-        uint16_t color = pixels[offset + i];
-        out[2 * i] = (uint8_t)(color >> 8);
-        out[2 * i + 1] = (uint8_t)color;
+    const uint16_t *source = pixels + (size_t)first_row * LISP_APP_WIDTH;
+    size_t count = (size_t)rows * LISP_APP_WIDTH;
+#if (defined(__GNUC__) || defined(__clang__)) && defined(__BYTE_ORDER__) &&                                  \
+    __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    /* The normal PSRAM canvas and DMA strip are aligned and disjoint. Preserve
+     * the original byte-by-byte behavior for overlapping or unaligned buffers. */
+    uintptr_t src_addr = (uintptr_t)source, out_addr = (uintptr_t)out;
+    size_t bytes = count * sizeof(uint16_t);
+    if (((src_addr ^ out_addr) & 3U) == 0 && src_addr <= UINTPTR_MAX - bytes &&
+        out_addr <= UINTPTR_MAX - bytes && (src_addr + bytes <= out_addr || out_addr + bytes <= src_addr)) {
+        if ((src_addr & 3U) && count) {
+            uint16_t color = *source++;
+            *out++ = (uint8_t)(color >> 8);
+            *out++ = (uint8_t)color;
+            count--;
+        }
+        const pixel_pair_t *src_pairs = (const pixel_pair_t *)(const void *)source;
+        pixel_pair_t *out_pairs = (pixel_pair_t *)(void *)out;
+        while (count >= 2) {
+            uint32_t pair = *src_pairs++;
+            *out_pairs++ = ((pair & 0x00ff00ffU) << 8) | ((pair & 0xff00ff00U) >> 8);
+            count -= 2;
+        }
+        source = (const uint16_t *)(const void *)src_pairs;
+        out = (uint8_t *)(void *)out_pairs;
+    }
+#endif
+    while (count--) {
+        uint16_t color = *source++;
+        *out++ = (uint8_t)(color >> 8);
+        *out++ = (uint8_t)color;
     }
     return true;
 }

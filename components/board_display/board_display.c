@@ -1,6 +1,9 @@
 #include "board_display.h"
 #include "sdkconfig.h"
 #include "wifi_service.h"
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+#include "lisp_perf.h"
+#endif
 
 #if CONFIG_BOARD_DISPLAY_ENABLE
 
@@ -285,7 +288,14 @@ static esp_err_t draw_frame(display_context_t *context, const lcd_terminal_t *vi
 static esp_err_t draw_frame(display_context_t *context, const display_probe_view_t *view)
 #endif
 {
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    lisp_perf_token_t timing = pixels ? lisp_perf_begin() : (lisp_perf_token_t){0};
+    uint64_t render_us = 0, transfer_us = 0;
+#endif
     for (unsigned y = 0; y < DISPLAY_HEIGHT; y += DISPLAY_STRIP_ROWS) {
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+        uint64_t section_started = timing.active ? lisp_perf_now_us() : 0;
+#endif
 #if CONFIG_LISP_REPL_ENABLE
         bool rendered =
             pixels ? lisp_app_render_strip(pixels, context->strip, STRIP_BYTES, y, DISPLAY_STRIP_ROWS)
@@ -296,6 +306,13 @@ static esp_err_t draw_frame(display_context_t *context, const display_probe_view
         if (!rendered) {
             return ESP_ERR_INVALID_ARG;
         }
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+        if (timing.active) {
+            uint64_t now = lisp_perf_now_us();
+            render_us += now - section_started;
+            section_started = now;
+        }
+#endif
         esp_err_t error = esp_lcd_panel_draw_bitmap(context->panel, 0, (int)y, DISPLAY_WIDTH,
                                                     (int)(y + DISPLAY_STRIP_ROWS), context->strip);
         if (error != ESP_OK || xSemaphoreTake(context->transfer_done, pdMS_TO_TICKS(2000)) != pdTRUE) {
@@ -303,7 +320,16 @@ static esp_err_t draw_frame(display_context_t *context, const display_probe_view
             context->dma_uncertain = true;
             return error != ESP_OK ? error : ESP_ERR_TIMEOUT;
         }
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+        if (timing.active)
+            transfer_us += lisp_perf_now_us() - section_started;
+#endif
     }
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    lisp_perf_add(LISP_PERF_LCD_RENDER, timing, render_us);
+    lisp_perf_add(LISP_PERF_LCD_TRANSFER, timing, transfer_us);
+    lisp_perf_end(LISP_PERF_LCD_FRAME, timing);
+#endif
     return ESP_OK;
 }
 

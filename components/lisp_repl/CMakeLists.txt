@@ -7,5 +7,5 @@ if(CONFIG_WIFI_REPL_ENABLE)
 endif()
 idf_component_register(SRCS ${repl_sources} INCLUDE_DIRS "include"
     REQUIRES lcd_terminal lisp_app lisp_app_url
-    PRIV_REQUIRES lispbm_runtime board_display esp_driver_uart esp_timer esp_app_format heap freertos log wifi_service lwip)
+    PRIV_REQUIRES lispbm_runtime board_display lisp_perf esp_driver_uart esp_timer esp_app_format heap freertos log wifi_service lwip)
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wall -Wextra -Werror -Wconversion -Wshadow)

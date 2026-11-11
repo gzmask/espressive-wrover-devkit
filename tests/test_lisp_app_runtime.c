@@ -2,6 +2,9 @@
 #include "lisp_runtime.h"
 #include "lisp_test_storage.h"
 #include "repl_frontend.h"
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+#include "lisp_perf.h"
+#endif
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -130,7 +133,33 @@ int main(int argc, char **argv)
     assert(lisp_app_canvas_init(&canvas, pixels[0], pixels[1], LISP_APP_PIXELS));
     lcd_terminal_init(&terminal);
     assert(lisp_runtime_app_attach(&backend));
-    if (!strcmp(argv[1], "lifecycle")) {
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    if (!strcmp(argv[1], "perf-integration")) {
+        assert(lisp_perf_start());
+        render = false;
+        launch("(gfx-clear 0)",
+               "(progn (gfx-clear 2) (gfx-rect 1 1 3 4 42) (gfx-text 0 0 \"x\" 1) (gfx-present))", "t");
+        advance(500); /* Init is pending: the due tick must observe backpressure. */
+        assert(canvas.pending >= 0);
+        lisp_app_frame_t frame;
+        assert(lisp_app_canvas_acquire(&canvas, &frame));
+        lisp_app_canvas_complete(&canvas, &frame, true);
+        render = true;
+        advance(500);
+        stop();
+        lisp_perf_stats_t snapshot;
+        assert(lisp_perf_stop(&snapshot));
+        assert(snapshot.metrics[LISP_PERF_BACKPRESSURE].count > 0);
+        assert(snapshot.metrics[LISP_PERF_CANVAS_COPY].count > 0);
+        assert(snapshot.metrics[LISP_PERF_TICK_LATE].count > 0);
+        assert(snapshot.metrics[LISP_PERF_CALLBACK].count > 0);
+        assert(snapshot.metrics[LISP_PERF_CLEAR].count > 0);
+        assert(snapshot.metrics[LISP_PERF_RECT].count > 0);
+        assert(snapshot.metrics[LISP_PERF_TEXT].count > 0);
+        assert(snapshot.metrics[LISP_PERF_LCD_FRAME].count == 0); /* No target SPI in host model. */
+    } else
+#endif
+        if (!strcmp(argv[1], "lifecycle")) {
         evaluate("(define twice (lambda (x) (* x 2)))");
         launch("(progn (gfx-clear 0) (gfx-rect 20 30 120 60 63488) (gfx-text 20 110 \"Hello LispBM\" 65535) "
                "(gfx-present))",

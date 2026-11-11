@@ -22,6 +22,10 @@
 #include "repl_boot_info.h"
 #include "repl_frontend.h"
 #include "repl_help.h"
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+#include "lisp_perf.h"
+#include "lisp_perf_report.h"
+#endif
 #include <stdatomic.h>
 #include <stdio.h>
 #include <string.h>
@@ -142,6 +146,37 @@ static void message(const char *text)
 {
     output(NULL, text, strlen(text));
 }
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+static bool perf_control(const char *source)
+{
+    lisp_perf_command_t command = lisp_perf_command(source);
+    if (command == LISP_PERF_COMMAND_NONE)
+        return false;
+    if (lisp_runtime_busy() || lisp_runtime_app_active() || lisp_runtime_load_active()) {
+        message("ERROR: stop app and wait for idle before perf control\n");
+        return true;
+    }
+    if (command == LISP_PERF_COMMAND_START) {
+        message(lisp_perf_start() ? "Perf started; RAM only\n" : "ERROR: perf already active or exhausted\n");
+        return true;
+    }
+    lisp_perf_stats_t snapshot;
+    if (!lisp_perf_stop(&snapshot)) {
+        message("ERROR: perf is not active\n");
+        return true;
+    }
+    message("Perf stopped; wall microseconds, not CPU\n");
+    for (unsigned i = 0; i < LISP_PERF_METRICS; i++) {
+        char line[160];
+        if (!lisp_perf_format_line(&snapshot, (lisp_perf_metric_t)i, line, sizeof(line))) {
+            message("ERROR: perf report truncated\n");
+            break;
+        }
+        message(line);
+    }
+    return true;
+}
+#endif
 static void show_help(void)
 {
     bool app = false, url = false, tcp = false;
@@ -217,6 +252,10 @@ static void input_byte(uint8_t byte)
         } else if (!strcmp(frontend.source, ":reset")) {
             message(lisp_runtime_reset() ? "RAM definitions cleared\n" : "ERROR: runtime reset failed\n");
             finish();
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+        } else if (perf_control(frontend.source)) {
+            finish();
+#endif
         } else if (frontend.source[0] == ':') {
             message("ERROR: unknown command; :help\n");
             finish();
@@ -306,6 +345,10 @@ static void remote_poll(void)
             remote.status = ESP_FAIL;
             message("ERROR: runtime reset failed\n");
         }
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    } else if (perf_control(remote.source)) {
+        /* perf_control writes its bounded response to the current remote reply. */
+#endif
     } else if (remote.source[0] == ':')
         message("ERROR: unknown command; :help\n");
     else
