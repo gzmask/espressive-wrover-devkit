@@ -1,12 +1,20 @@
-# 单应用分区＋USB更新／恢复（当前0.5.0 factory）
+# 单应用分区＋USB更新／恢复（当前0.5.1 factory）
 
-## 当前0.5.0：仅应用更新，URL loader已编译启用
+## 当前0.5.1：帮助改进，仅应用更新
+
+准确批准SHA256 `5c017c7f6e8bfa64675eb62e3f6673bcb24651ff3ce269dcda7f09172e3b6e86`／1194720字节／`[0x10000,0x134000)`／292扇区后，一次USB应用写入66.2秒。写前新同板/8字段/实际完整0.5.0基线及旧引导、写后应用/FFpadding/全部补集/8字段/实际完整4MiB保护通过；无引导/表/NVS/旧控制/eFuse写入、OTA、重试或恢复。
+
+一次正常RTS启动只读180.183秒：factory/0.5.1/冻结ELF前缀、ready/probe/PSRAM六模式/ILI9341帧1→851/心跳0→177、联网后34条healthy通过。没有UART/TCP表达式、URL或demo；新帮助交互和LCD目视未验收。重启清除RAM定义；串口已释放，无后台监控。
+
+最新私有 `.local/flash/help-0.5.1/post-protection/current-0.5.1-expected.bin` 重建且实际完整SDK匹配，非新双读；全部Flash/security核验在最后启动前，此后仅UART采集和本地解析。0.5.0及更早全片不再代表当前应用；旧B秘密仍保留但不是备用槽。全部写权限耗尽，交互另批；新固件须新准确hash/范围批准、新同板/8字段/最新实际0.5.1完整基线及新marker单次USB。
+
+## 历史0.5.0：仅应用更新，URL loader已编译启用
 
 准确批准`5a8bb890f611dfb274f9b4a5d284654ace2307db994483652c9acdb287b57eea`／1194400字节／`[0x10000,0x134000)`／292扇区后，唯一USB写入66.2秒；无引导/表/NVS/旧控制/eFuse写入、OTA、重试或恢复。新同板/8字段/实际完整0.4.0基线和旧引导、写后应用/FFpadding/全部补集/8字段/实际完整4MiB保护通过。
 
 180.101秒正常RTS启动只读：factory/0.5.0/冻结ELF前缀、ready/probe/PSRAM六模式/ILI9341帧1→851/心跳0→178、ONLINE8508ms/TCP8568ms、联网后34条healthy通过，无URL loader启动错误。没有URL/demo/UART/TCP表达式，真实在线加载和LCD目视/应用退出未验收；RAM定义已清除。出站HTTPS仅加载应用到RAM，不是固件OTA或HTTPS服务，见 [URL加载](APP_URL_LOADING.md)。
 
-最新私有`.local/flash/app-url-0.5.0/post-protection/current-0.5.0-expected.bin`为重建且实际完整SDK匹配，非新双读；全部保护在最终启动前，此后只有UART采集/本地整理。旧0.4.0全片已不代表当前应用，旧档案不改，旧B秘密/字节保留不等于备用槽。全部写权限耗尽，UART释放，无后台监控；交互另批。新固件须新准确hash/实际factory扇区范围/同板8字段/最新实际0.5.0完整基线/新marker单次USB，不重试或自动恢复。
+当时私有`.local/flash/app-url-0.5.0/post-protection/current-0.5.0-expected.bin`为重建且实际完整SDK匹配，非新双读，现不代表当前应用；全部保护在最终启动前，此后只有UART采集/本地整理。旧0.4.0全片已不代表当前应用，旧档案不改，旧B秘密/字节保留不等于备用槽。全部写权限耗尽，UART释放，无后台监控；交互另批。后续新固件须新准确hash/实际factory扇区范围/同板8字段/最新实际完整基线/新marker单次USB，不重试或自动恢复。
 
 ## 历史0.4.0：仅应用更新，沿用单槽表与旧引导
 

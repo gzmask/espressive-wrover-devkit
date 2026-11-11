@@ -1,12 +1,12 @@
-# LispBM REPL＋LCD终端（当前0.5.0 factory，无认证TCP＋UART＋应用层/URL loader）
+# LispBM REPL＋LCD终端（当前0.5.1 factory，无认证TCP＋UART＋应用层/URL loader）
 
-0.5.0已准确批准并唯一USB应用写入66.2秒，沿用单槽表/旧引导；180.101秒正常启动只读通过：factory/版本/冻结ELF前缀、实际probe PASS/align_mod8=0、PSRAM128KiB六模式、固定ILI9341帧1→851、心跳0→178、联网后34条healthy，无URL loader启动错误。版本/USB only/IP/TCP/nc各一次，无自动eval/整段help。全部Flash/security保护在最后启动前；之后只有UART读取与本地解析，没有新UART/TCP交互或LCD独立目视。旧12UART/24TCP不能外推本版，见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。
+0.5.1已准确批准并唯一USB应用写入66.2秒；实际完整4MiB保护通过，180.183秒正常启动只读通过：factory/版本/冻结ELF前缀、实际probe PASS/align_mod8=0、PSRAM128KiB六模式、固定ILI9341帧1→851、心跳0→177、联网后34条healthy。全部Flash/security保护在最后启动前；之后只有UART采集与本地解析，没有UART/TCP交互或LCD独立目视。旧12UART/24TCP不能外推本版，见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。
 
-## 帮助改进（仅源码，尚未部署）
+## 帮助改进（已部署，交互未测）
 
 新版 `:help` 按编译配置列出 URL 加载、状态/取消、`(app-run demo)`、应用停止与清理步骤，同时区分 UART 和 TCP 的 Ctrl-C。它只在普通终端可用：加载时先 `:load-status` 或 `:load-cancel`；应用运行时用 UART Ctrl-C 或 TCP `:stop`，等待退出完成后再 `:help` 或 `:reset`。正常停止保留定义；`:reset` 停止所有 context 并清空所有 RAM 定义，不重启设备。下载阶段取消保留原定义，加载求值阶段取消则清空所有定义。
 
-当前板上仍是原 0.5.0 帮助文本，新帮助未部署、未实机测试；新固件写入须另行准确批准。URL、应用和 RAM 清理的具体语义不因帮助改动而改变。
+新帮助已随0.5.1部署，但本次没有发送 `:help`，实际交互及LCD可读性未验收。URL、应用和 RAM 清理的具体语义不因帮助改动而改变；任何新固件写入须另行准确批准。
 
 ## URL加载接口（已部署，实际HTTPS加载未测）
 

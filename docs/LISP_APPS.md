@@ -1,4 +1,6 @@
-# LispBM 前台应用层（当前0.5.0 factory，切屏/URL待交互验收）
+# LispBM 前台应用层（当前0.5.1 factory，切屏/URL待交互验收）
+
+0.5.1帮助改进已部署并通过180.183秒只读启动；未发送URL/demo或其他REPL命令，实际应用切换、退出和LCD目视仍未验收。当前写入与保护事实见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)；以下0.5.0记录为历史。
 
 0.5.0已准确批准并唯一USB应用写入66.2秒，应用/FFpadding/全部补集/8字段/实际完整4MiB保护通过；之后180.101秒只读启动健康，无URL loader启动错误、无UART/TCP/URL/demo命令。0.4.0的RAM demo/定义已随复位清除，未重载，实际切屏/退出及LCD目视仍未验收。当前写入与恢复边界见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)，URL用法见下节。
 

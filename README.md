@@ -2,7 +2,13 @@
 
 ESP-WROVER-KIT v4.1 / 经典 ESP32 的 ESP-IDF 固件：FreeRTOS、PSRAM、ILI9341、自动 Wi-Fi、USB固件更新与 RAM-only LispBM REPL。
 
-## 当前设备：0.5.0 URL → RAM 应用加载（factory已部署，URL交互未测）
+## 当前设备：0.5.1 帮助改进（factory已部署，交互未测）
+
+准确批准后，`0.5.1-help-usb`／SHA256 `5c017c7f6e8bfa64675eb62e3f6673bcb24651ff3ce269dcda7f09172e3b6e86`／1,194,720字节／`[0x10000,0x134000)`唯一USB应用写入66.2秒。写前同板/8字段/实际完整0.5.0基线和旧引导通过；写后应用/FFpadding、全部补集、8字段及实际完整4MiB匹配，无其他区域写入、重试或恢复。
+
+一次正常启动只读180.183秒：factory/冻结ELF前缀、实际probe PASS、PSRAM六模式、ILI9341帧1→851、心跳0→177、联网后34条healthy。没有发送UART/TCP表达式或URL/demo命令，`:help`实际交互和LCD目视尚未验收。RAM定义随重启清除；全部写权限耗尽。最新私有参考 `help-0.5.1/post-protection/current-0.5.1-expected.bin` 为重建且实际完整SDK匹配，非新双读；全部Flash/security核验在最后启动前。
+
+## 历史0.5.0 URL → RAM 应用加载（已被0.5.1替换）
 
 准确批准SHA256 `5a8bb890f611dfb274f9b4a5d284654ace2307db994483652c9acdb287b57eea`／1,194,400字节／`[0x10000,0x134000)`／292扇区后，**唯一USB应用写入66.2秒**，保留表/引导/NVS/reserved/free/旧B和范围外字节，无OTA/重试/恢复。写前新同板/8字段/实际完整0.4.0基线和旧引导，写后应用/FFpadding/全部补集/8字段/实际完整4MiB均匹配。
 
@@ -10,7 +16,7 @@ ESP-WROVER-KIT v4.1 / 经典 ESP32 的 ESP-IDF 固件：FreeRTOS、PSRAM、ILI93
 
 已启用 `(app-load-url "https://…/app.lisp")`：最多32KiB、后台HTTPS→RAM、原owner加载定义，`:load-status`／`:load-cancel`；成功后仍显式`app-run`。CA/主机名/日期校验，首次请求按需限时校时；不写Flash/NVS、不自动run/重试/重定向，不新增OTA或监听。见 [URL加载](docs/APP_URL_LOADING.md)。
 
-最新私有参考`app-url-0.5.0/post-protection/current-0.5.0-expected.bin`为重建/实际完整SDK匹配，非新双读；所有Flash/security核验在最终启动前，此后仅UART采集和本地整理。旧0.4.0全片不再代表当前应用，旧B秘密保留不是备用槽或秘密清除。全部写权限耗尽，UART释放，无后台监控，交互另批；不自动commit/push。
+当时私有参考`app-url-0.5.0/post-protection/current-0.5.0-expected.bin`为重建/实际完整SDK匹配，非新双读，现已不代表当前应用；所有Flash/security核验在最终启动前，此后仅UART采集和本地整理。旧0.4.0全片不再代表当前应用，旧B秘密保留不是备用槽或秘密清除。全部写权限耗尽，UART释放，无后台监控，交互另批；不自动commit/push。
 
 ## 历史0.4.0 LispBM 应用层（已被0.5.0替换）
 

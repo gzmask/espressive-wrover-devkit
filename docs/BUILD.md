@@ -1,6 +1,10 @@
 # 构建、测试与工具链
 
-## 当前0.5.0：正式URL loader配置已部署
+## 当前0.5.1：帮助改进配置已部署
+
+`.local/build-help-candidate` / `PROJECT_VER=0.5.1-help-usb`已准确批准并唯一USB应用写入；实际完整4MiB保护及180.183秒只读启动通过，help/URL交互未测。主机两模型各150项、28 Python/4历史mock、full及UART离线构建通过。当前事实与最新参考见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。
+
+## 历史0.5.0：正式URL loader配置已部署后被替换
 
 正式目录`.local/build-app-url-candidate`，显式`PROJECT_VER=0.5.0-app-url-usb`，APP/URL/TCP/Wi-Fi及CA/主机名/证书日期检查启用；1194400字节镜像SHA256 `5a8bb890f611dfb274f9b4a5d284654ace2307db994483652c9acdb287b57eea`，准确批准后唯一USB应用写入66.2秒。147源码构建前后/冻结归档一致，SDK头/footer/ELF和配置通过；两主机模型149/149、28Python/4历史mock、六回归配置及正式构建通过。
 
@@ -44,7 +48,7 @@ REPL去除证书/token，改TCP2323/nc；`WIFI_REPL_ENABLE`默认n，依赖Lisp+
 
 ## 当前部署与构建配置
 
-截至2026-11-10，设备实际运行 **`0.5.0-app-url-usb` / factory 0x10000**；应用唯一USB写入66.2秒，180.101秒正常启动只读通过，无UART/TCP/URL/demo测试输入。单槽没有OTA VALID状态或HTTPS服务；本版LCD未独立目视、应用切屏未交互验收，见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。全部写入许可已消耗，构建不是再次烧录授权。
+设备实际运行 **`0.5.1-help-usb` / factory 0x10000**；应用唯一USB写入66.2秒，180.183秒正常启动只读通过，无UART/TCP/URL/demo测试输入。单槽没有OTA VALID状态或HTTPS服务；本版LCD未独立目视、应用切屏未交互验收，见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。全部写入许可已消耗，构建不是再次烧录授权。
 
 根 `CMakeLists.txt` 的默认 `PROJECT_VER` 已改为 **0.3.0-single-usb**；单槽USB模式默认启用，可选PSRAM/LCD/Wi-Fi/Lisp仍默认关闭，OTA仅显式历史回归。默认构建不等于上板配置，当前设备只接受经新准确批准的USB固件更新，历史双槽OTA不再可用。新增 `LISP_REPL_ENABLE` 也默认关闭；LispBM0.2.0曾初始化失败回退；0.2.1修复后实机启动/UART已通过，见 [LISP_REPL.md](LISP_REPL.md)。
 
@@ -58,7 +62,8 @@ REPL去除证书/token，改TCP2323/nc；`WIFI_REPL_ENABLE`默认n，依赖Lisp+
 | 历史安静启动＋TCP/OTA | `.local/build-boot-info-candidate` | 0.2.4、旧B字节仍保留但不再有独立槽；冻结不改 |
 | 历史单槽USB迁移 | `.local/build-single-usb-full` | 0.3.0、应用已替换；表/引导/档案保留 |
 | 历史单槽USB＋TCP＋Lisp应用层 | `.local/build-lisp-app-candidate` | 0.4.0、已被0.5.0替换，冻结不改 |
-| 当前单槽USB＋TCP＋应用/URL loader | `.local/build-app-url-candidate` | 0.5.0、明确APP/URL=y；唯一USB＋只读启动通过，URL交互未测 |
+| 历史单槽USB＋TCP＋应用/URL loader | `.local/build-app-url-candidate` | 0.5.0、已被0.5.1替换 |
+| 当前单槽USB＋帮助改进 | `.local/build-help-candidate` | 0.5.1、唯一USB＋只读启动通过，help/URL交互未测 |
 | 默认关闭回归 | `.local/build-ota-off` | 不链接凭据/OTA 私密输入，不启动 Wi-Fi/HTTPS |
 | 扫描回归 | `.local/build-ota-scan` | 扫描，无嵌入 Wi-Fi/OTA 凭据及 HTTPS 入口 |
 

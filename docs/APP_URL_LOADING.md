@@ -1,10 +1,12 @@
-# URL → RAM 应用加载（0.5.0 factory已部署，URL交互未测）
+# URL → RAM 应用加载（当前0.5.1 factory，URL交互未测）
+
+0.5.1帮助改进已部署，180.183秒正常启动只读通过；没有发送URL、demo或其他REPL命令，真实HTTPS加载仍未验收。当前写入与保护事实见 [单槽USB](SINGLE_APP_USB.md)。下述0.5.0部署记录为历史，旧全片参考不代表当前应用。
 
 准确批准`5a8bb890f611dfb274f9b4a5d284654ace2307db994483652c9acdb287b57eea`／1194400字节／`[0x10000,0x134000)`／292扇区后，一次USB应用写入66.2秒，未写表/引导/NVS/旧控制/eFuse。新同板/8字段/实际完整0.4.0基线/旧引导及写后应用/FFpadding/全部补集/8字段/实际完整4MiB均通过。
 
 **180.101秒正常启动只读通过**：factory/0.5.0/冻结ELF前缀80c5d66a7、ready/align_mod8=0/probe PASS、PSRAM128KiB六模式、固定ILI9341帧1→851/心跳0→178；ONLINE8508ms/TCP8568ms，34条联网后healthy，无URL loader启动错误。没有发送UART/TCP/URL/demo命令，真实HTTPS加载/校时/加载后运行仍未验收；RAM demo/定义已随复位清除。
 
-当前私有检查点`.local/flash/app-url-0.5.0/`的execution-*和acceptance-summary记录实际执行；冻结candidate/CONTINUE/resume仍保留PENDING历史，不修改。全部写权限耗尽，UART释放，无后台监控；交互另批，不自动commit/push。所有Flash/security核验在最后启动前，此后仅UART采集和本地整理。
+当时私有检查点`.local/flash/app-url-0.5.0/`的execution-*和acceptance-summary记录实际执行；冻结candidate/CONTINUE/resume仍保留PENDING历史，不修改。全部写权限耗尽，UART释放，无后台监控；交互另批，不自动commit/push。所有Flash/security核验在最后启动前，此后仅UART采集和本地整理。
 
 ## 使用
 
