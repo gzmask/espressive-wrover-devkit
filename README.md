@@ -2,7 +2,23 @@
 
 ESP-WROVER-KIT v4.1 / 经典 ESP32 的 ESP-IDF 固件：FreeRTOS、PSRAM、ILI9341、自动 Wi-Fi、USB固件更新与 RAM-only LispBM REPL。
 
-## 当前设备：0.5.1 帮助改进（factory已部署，交互未测）
+## 当前设备：0.5.3 应用与LCD目标周期100ms（factory已部署）
+
+准确批准SHA256 `f357c1b37a6ca67e982d7da0bfc51fb250e0b8547adb24096ab03563a1c4bfe8`／1,194,736字节／`[0x10000,0x134000)`／292扇区后，唯一USB应用写入66.1秒。新同板/8字段/实际完整0.5.2基线及旧引导、写后app/FFpadding/所有补集/8字段/实际完整4MiB均通过；无引导/表/NVS/eFuse/OTA写入、重试或恢复。
+
+一次正常启动180.146秒只读通过：factory/0.5.3/冻结ELF前缀8e1379d54、ready/probe PASS、PSRAM六模式、ILI9341帧1→1051/心跳0→177、联网后34条healthy。终端状态下submitted_frames从1@2718ms到1051@179288ms，约5.95次/秒，含重复帧，不是实际动画或目视FPS；100ms目标不保证10FPS。本次没有UART/TCP表达式、URL或demo，复位已清除RAM定义。
+
+最新私有`.local/flash/period-100ms-0.5.3/post-protection/current-0.5.3-expected.bin`重建且实际完整SDK匹配，非新双读；全部Flash/security核验在最后启动前，此后仅UART采集与本地解析。全部写权限耗尽，UART释放，无后台监控。构建来自未提交工作树及base commit `3811321`，完整源码快照已冻结；详情见 [单槽USB](docs/SINGLE_APP_USB.md)。
+
+## 历史0.5.2 帧预算修复（已被0.5.3替换）
+
+准确批准SHA256 `09148ca37003a3280a50143f386fa6d2390f23819076f648ca6a8ed3d07d216e`／1,194,720字节／`[0x10000,0x134000)`／292扇区后，唯一USB应用写入66.3秒。新同板/8安全字段/实际完整0.5.1基线与旧引导，写后应用/FFpadding/全部补集/8字段及实际完整4MiB预期通过；没有引导/表/NVS/eFuse/OTA写入、重试或恢复。
+
+一次正常启动180.185秒只读通过：factory/0.5.2/冻结ELF前缀9284be7bd、2138ms ready/probe PASS、PSRAM六模式、ILI9341帧1→851/心跳0→177、联网后34条healthy。该次启动验收没有UART/TCP表达式、URL或demo；后续按用户请求实测Tiny2D逻辑回调约4.94Hz（旧版约3.01Hz），不是LCD目视FPS；TinyGL未重测。刷后RAM定义已清除，后续profile已重载Tiny2D，两个demo均无需修改其`.lisp`。
+
+帧调度已从“回调结束＋200ms”改为“回调开始＋200ms”，只等待剩余预算，超预算不额外等满200ms、不补帧；64步求值批次、GC、LCD/SPI均不变。源码提交`3811321`已推送；详情见 [应用层](docs/LISP_APPS.md)。当时私有参考`cadence-0.5.2/post-protection/current-0.5.2-expected.bin`重建且实际完整SDK匹配，非新双读；该次Flash/security核验在0.5.2最终启动前，后续按请求进行了RAM profiling，现已被0.5.3替换。
+
+## 历史0.5.1 帮助改进（已被0.5.2替换）
 
 准确批准后，`0.5.1-help-usb`／SHA256 `5c017c7f6e8bfa64675eb62e3f6673bcb24651ff3ce269dcda7f09172e3b6e86`／1,194,720字节／`[0x10000,0x134000)`唯一USB应用写入66.2秒。写前同板/8字段/实际完整0.5.0基线和旧引导通过；写后应用/FFpadding、全部补集、8字段及实际完整4MiB匹配，无其他区域写入、重试或恢复。
 
@@ -179,4 +195,4 @@ tests/                      主机测试及独立构建配置
 docs/                       当前说明与明确分版的历史记录
 ```
 
-当前私有检查点 `.local/flash/app-url-0.5.0/`；先读execution-CONTINUE/execution-resume/acceptance-summary。`post-protection/current-0.5.0-expected.bin`是重建且实际完整SDK摘要匹配的4MiB预期，**不是新双读备份**，所有保护在最后正常启动之前。旧0.4.0及更早全片不再代表当前应用，冻结candidate/source/PENDING历史不改，实际authorization/marker/验收另存。
+当前私有检查点 `.local/flash/period-100ms-0.5.3/`；先读execution-CONTINUE/execution-resume/acceptance-summary。`post-protection/current-0.5.3-expected.bin`是重建且实际完整SDK摘要匹配的4MiB预期，**不是新双读备份**，所有保护在最后正常启动之前。旧0.5.2及更早全片不再代表当前应用；冻结candidate/source/PENDING历史不改，实际authorization/marker/验收另存。

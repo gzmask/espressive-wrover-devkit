@@ -64,7 +64,7 @@ static void advance(unsigned milliseconds)
 {
     for (unsigned i = 0; i < milliseconds; i++, now++) {
         lisp_runtime_step(now);
-        if (render && now % 200 == 0) {
+        if (render && now % 100 == 0) {
             lisp_app_frame_t frame;
             assert(lisp_app_canvas_acquire(&canvas, &frame));
             lisp_app_canvas_complete(&canvas, &frame, true);
@@ -206,19 +206,19 @@ int main(int argc, char **argv)
         for (unsigned i = 0; i < 4; i++) {
             wait_publication(i + 1);
             assert(publish_times[i] - draw_times[i] >= 80);
-            assert(publish_times[i] - draw_times[i] < 200);
+            assert(publish_times[i] - draw_times[i] < 100);
             if (i != 0)
-                assert(draw_times[i] - draw_times[i - 1] == 200);
+                assert(draw_times[i] - draw_times[i - 1] == 100);
             acknowledge_frame();
         }
         cadence_end();
     } else if (!strcmp(argv[1], "cadence-overrun")) {
         render = false;
         record_cadence = true;
-        launch("(progn (yield 240000) (gfx-clear 0))", "(progn (yield 240000) (gfx-present))", "t");
+        launch("(progn (yield 120000) (gfx-clear 0))", "(progn (yield 120000) (gfx-present))", "t");
         for (unsigned i = 0; i < 4; i++) {
             wait_publication(i + 1);
-            assert(publish_times[i] - draw_times[i] >= 240);
+            assert(publish_times[i] - draw_times[i] >= 120);
             if (i != 0)
                 assert(draw_times[i] == publish_times[i - 1] + 1);
             acknowledge_frame();
@@ -231,7 +231,7 @@ int main(int argc, char **argv)
             if (i == 1)
                 assert(draw_times[i] == publish_times[i - 1] + 1);
             if (i > 1)
-                assert(draw_times[i] - draw_times[i - 1] == 200);
+                assert(draw_times[i] - draw_times[i - 1] == 100);
             acknowledge_frame();
         }
         cadence_end();
@@ -246,7 +246,7 @@ int main(int argc, char **argv)
         assert(draw_times[1] == released_at);
         acknowledge_frame();
         wait_publication(3);
-        assert(draw_times[2] - draw_times[1] == 200); /* Rebase, do not catch up. */
+        assert(draw_times[2] - draw_times[1] == 100); /* Rebase, do not catch up. */
         acknowledge_frame();
         cadence_end();
     } else if (!strcmp(argv[1], "cadence-key")) {
@@ -256,10 +256,10 @@ int main(int argc, char **argv)
         uint64_t key_at = now;
         assert(lisp_runtime_app_key('p'));
         wait_publication(2);
-        assert(draw_times[1] == key_at && key_at < draw_times[0] + 200);
+        assert(draw_times[1] == key_at && key_at < draw_times[0] + 100);
         acknowledge_frame();
         wait_publication(3);
-        assert(draw_times[2] - draw_times[1] == 200);
+        assert(draw_times[2] - draw_times[1] == 100);
         acknowledge_frame();
         cadence_end();
     } else if (!strcmp(argv[1], "validation")) {

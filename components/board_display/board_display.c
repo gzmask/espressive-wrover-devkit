@@ -352,6 +352,9 @@ static void display_task(void *argument)
     TickType_t last_frame = xTaskGetTickCount();
     while (error == ESP_OK) {
 #if CONFIG_LISP_REPL_ENABLE
+        /* Anchor each frame independently: an SPI overrun must not accumulate
+         * periodic catch-up debt when the next frame is ready. */
+        last_frame = xTaskGetTickCount();
         lcd_terminal_t view;
         const uint16_t *pixels = NULL;
 #if CONFIG_LISP_APP_ENABLE
@@ -421,7 +424,7 @@ static void display_task(void *argument)
                      (unsigned)uxTaskGetStackHighWaterMark(NULL));
         }
 #if CONFIG_LISP_REPL_ENABLE
-        xTaskDelayUntil(&last_frame, pdMS_TO_TICKS(200));
+        xTaskDelayUntil(&last_frame, pdMS_TO_TICKS(100));
 #else
         xTaskDelayUntil(&last_frame, pdMS_TO_TICKS(1000));
 #endif

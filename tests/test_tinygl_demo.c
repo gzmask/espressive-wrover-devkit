@@ -78,7 +78,7 @@ static void advance(unsigned milliseconds)
 {
     for (unsigned i = 0; i < milliseconds; i++, now++) {
         lisp_runtime_step(now);
-        if (now % 200 == 0) {
+        if (now % 100 == 0) {
             lisp_app_frame_t frame;
             assert(lisp_app_canvas_acquire(&canvas, &frame));
             lisp_app_canvas_complete(&canvas, &frame, true);

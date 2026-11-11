@@ -1,12 +1,28 @@
-# 单应用分区＋USB更新／恢复（当前0.5.1 factory）
+# 单应用分区＋USB更新／恢复（当前0.5.3 factory）
 
-## 当前0.5.1：帮助改进，仅应用更新
+## 当前0.5.3：100ms目标周期，仅应用更新
+
+准确批准SHA256 `f357c1b37a6ca67e982d7da0bfc51fb250e0b8547adb24096ab03563a1c4bfe8`／1194736字节／`[0x10000,0x134000)`／292扇区后，唯一USB factory应用写入66.1秒；新同板/8字段/实际完整0.5.2基线与旧引导、写后应用/FFpadding/所有补集/8字段及实际完整4MiB预期通过。无OTA/重试/恢复或引导/表/NVS/旧控制/eFuse写入。
+
+保护后一次正常RTS启动180.146秒只读通过：factory/0.5.3/冻结ELF前缀8e1379d54、2138ms ready/probe PASS、PSRAM六模式、两次9341/ILI9341帧1→1051/心跳0→177、ONLINE8508ms/TCP8568ms、34条healthy。终端submitted_frames 1@2718ms→1051@179288ms约5.95次/秒，含重复帧，不是动画或目视FPS。本次未发送UART/TCP表达式、URL或demo；复位清除RAM定义。
+
+最新私有`.local/flash/period-100ms-0.5.3/post-protection/current-0.5.3-expected.bin`由actual SDK匹配0.5.2参考＋新app/FFpadding重建并actual完整4MiB匹配，非新双读；旧0.5.2及更早全片不再代表当前应用。全部Flash/security检查在最后启动前，此后仅UART采集/本地解析；冻结candidate/CONTINUE/resume及SHA256SUMS不改，实际authorization/marker/执行与验收另存。冻结CONTINUE的0.5.1基线模板错误见独立`.local/100ms-candidate-erratum.txt`，实际使用和检查的是0.5.2。写权限耗尽，UART释放；新写须新准确hash/范围、同板8字段、最新actual完整0.5.3基线和新marker，交互另请。
+
+## 历史0.5.2：帧预算修复，仅应用更新
+
+准确批准SHA256 `09148ca37003a3280a50143f386fa6d2390f23819076f648ca6a8ed3d07d216e`／1194720字节／`[0x10000,0x134000)`／292扇区后，唯一factory USB应用写入66.3秒。写前新同板/8字段/实际完整最新0.5.1基线及保留旧引导，写后应用/FFpadding/全部补集/8字段/实际完整4MiB预期均通过；无引导/表/NVS/reserved/eFuse/OTA写入、重试或恢复。
+
+一次正常RTS启动180.185秒只读通过：factory/0.5.2/冻结ELF前缀9284be7bd、2138ms ready/8字节对齐/probe PASS、PSRAM128KiB六模式、两次一致9341/单固定ILI9341帧1→851、心跳0→177、ONLINE8518ms/TCP8568ms、34条healthy。未发送UART/TCP表达式、URL或demo，实际新动画速率/目视未验收；旧profiling不能挪作修复后的性能。RAM定义已清除。
+
+当时私有`.local/flash/cadence-0.5.2/post-protection/current-0.5.2-expected.bin`由actual SDK匹配0.5.1参考＋准确应用/FFpadding重建并actual完整4MiB匹配，非新双读；部署保护在0.5.2最后启动前。后续用户明确请求后已做Tiny2D RAM profiling；再后来0.5.3写入已替换应用，因此0.5.2全片不再代表当前设备。最新写入边界及基线以上节为准。
+
+## 历史0.5.1：帮助改进，仅应用更新
 
 准确批准SHA256 `5c017c7f6e8bfa64675eb62e3f6673bcb24651ff3ce269dcda7f09172e3b6e86`／1194720字节／`[0x10000,0x134000)`／292扇区后，一次USB应用写入66.2秒。写前新同板/8字段/实际完整0.5.0基线及旧引导、写后应用/FFpadding/全部补集/8字段/实际完整4MiB保护通过；无引导/表/NVS/旧控制/eFuse写入、OTA、重试或恢复。
 
 一次正常RTS启动只读180.183秒：factory/0.5.1/冻结ELF前缀、ready/probe/PSRAM六模式/ILI9341帧1→851/心跳0→177、联网后34条healthy通过。没有UART/TCP表达式、URL或demo；新帮助交互和LCD目视未验收。重启清除RAM定义；串口已释放，无后台监控。
 
-最新私有 `.local/flash/help-0.5.1/post-protection/current-0.5.1-expected.bin` 重建且实际完整SDK匹配，非新双读；全部Flash/security核验在最后启动前，此后仅UART采集和本地解析。0.5.0及更早全片不再代表当前应用；旧B秘密仍保留但不是备用槽。全部写权限耗尽，交互另批；新固件须新准确hash/范围批准、新同板/8字段/最新实际0.5.1完整基线及新marker单次USB。
+当时私有 `.local/flash/help-0.5.1/post-protection/current-0.5.1-expected.bin` 重建且实际完整SDK匹配，非新双读；该次全部Flash/security核验在最后启动前。后续0.5.1实际URL加载Tiny2D做过RAM profiling；再后来0.5.2更新已替换应用，0.5.1全片不再代表当前状态。旧B秘密仍保留但不是备用槽；后续新写须使用当前0.5.3实际基线并另获准确批准。
 
 ## 历史0.5.0：仅应用更新，URL loader已编译启用
 
@@ -115,4 +131,4 @@ idf.py -B .local/build-single-usb-full \
 
 **恢复当前旧双槽0.2.4不只是重刷一个app**：旧应用带双槽OTA服务，不能在新factory表中直接当作兼容恢复镜像。恢复须配套旧分区表、A/B内容及需要恢复的控制记录，明确所有被新单槽应用覆盖的范围，并重新批准；不自动整片写回旧快照。
 
-最新检查点为 `.local/flash/lisp-app-0.4.0/`；当前事实以execution-CONTINUE/execution-resume和acceptance-summary等执行记录为准。原candidate/CONTINUE/resume的PENDING冻结历史不改，原0.3.0及所有更旧冻结产物也不改。
+最新检查点为 `.local/flash/period-100ms-0.5.3/`；当前事实以execution-CONTINUE/execution-resume和acceptance-summary等执行记录为准。原candidate/CONTINUE/resume的PENDING冻结历史不改，0.5.2及更旧冻结产物也不改。
