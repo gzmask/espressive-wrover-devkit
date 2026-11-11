@@ -1,4 +1,4 @@
-set(repl_sources "lisp_repl.c" "repl_frontend.c" "repl_remote_logic.c" "repl_boot_info.c")
+set(repl_sources "lisp_repl.c" "repl_frontend.c" "repl_remote_logic.c" "repl_boot_info.c" "repl_help.c")
 if(CONFIG_LISP_REPL_ENABLE)
     list(APPEND repl_sources "lisp_runtime.c" "lisp_app_runtime.c" "lisp_load_runtime.c")
 endif()

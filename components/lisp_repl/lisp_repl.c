@@ -21,6 +21,7 @@
 #endif
 #include "repl_boot_info.h"
 #include "repl_frontend.h"
+#include "repl_help.h"
 #include <stdatomic.h>
 #include <stdio.h>
 #include <string.h>
@@ -110,30 +111,6 @@ esp_err_t lisp_repl_remote_eval(const char *source, size_t length, char *reply, 
     return ESP_ERR_NOT_SUPPORTED;
 }
 #endif
-static const char help[] = "LispBM RAM-only REPL; UART0 115200\n"
-                           "Enter evaluates; unclosed forms continue.\n"
-                           "BS/DEL edit; Ctrl-U clears this line.\n"
-                           "Ctrl-C/:reset forget ALL RAM definitions.\n"
-                           ":help help; :clear clears LCD output.\n"
-                           "No save, Bluetooth or DSP.\n"
-#if CONFIG_LISP_APP_URL_ENABLE
-                           "URL: (app-load-url \"https://host/app.lisp\"); RAM only.\n"
-                           ":load-status / :load-cancel; loaded apps do not auto-run.\n"
-#endif
-#if CONFIG_LISP_APP_ENABLE
-                           "Apps: (app-run (list init step exit)); step event -1=tick.\n"
-                           "App UART Ctrl-C stops.\n"
-#if CONFIG_WIFI_REPL_ENABLE
-                           "App TCP: :stop or :key X.\n"
-#endif
-#else
-                           "No hardware IO.\n"
-#endif
-#if CONFIG_WIFI_REPL_ENABLE
-                           "Wi-Fi: plain TCP2323; no TLS/token.\n"
-#endif
-    ;
-
 /* Only REPL output goes to the LCD; ESP logs remain on the UART console.
  * Serial logs may interleave with REPL output, but never become Lisp input. */
 static void serial_write(const char *text, size_t length)
@@ -164,6 +141,20 @@ static void output(void *user, const char *text, size_t length)
 static void message(const char *text)
 {
     output(NULL, text, strlen(text));
+}
+static void show_help(void)
+{
+    bool app = false, url = false, tcp = false;
+#if CONFIG_LISP_APP_ENABLE
+    app = true;
+#endif
+#if CONFIG_LISP_APP_URL_ENABLE
+    url = true;
+#endif
+#if CONFIG_WIFI_REPL_ENABLE
+    tcp = true;
+#endif
+    repl_help_write(output, NULL, app, url, tcp);
 }
 static void prompt(void)
 {
@@ -218,7 +209,7 @@ static void input_byte(uint8_t byte)
             message("ERROR: URL load active; use :load-status or :load-cancel\n");
             finish();
         } else if (!strcmp(frontend.source, ":help")) {
-            message(help);
+            show_help();
             finish();
         } else if (!strcmp(frontend.source, ":clear")) {
             lcd_terminal_init(&frontend.terminal);
@@ -304,7 +295,7 @@ static void remote_poll(void)
     remote_active = true;
     remote.status = ESP_OK;
     if (!strcmp(remote.source, ":help"))
-        message(help);
+        show_help();
     else if (!strcmp(remote.source, ":clear")) {
         lcd_terminal_init(&frontend.terminal);
         message("LCD cleared\n");

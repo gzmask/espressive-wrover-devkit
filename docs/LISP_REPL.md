@@ -2,6 +2,12 @@
 
 0.5.0已准确批准并唯一USB应用写入66.2秒，沿用单槽表/旧引导；180.101秒正常启动只读通过：factory/版本/冻结ELF前缀、实际probe PASS/align_mod8=0、PSRAM128KiB六模式、固定ILI9341帧1→851、心跳0→178、联网后34条healthy，无URL loader启动错误。版本/USB only/IP/TCP/nc各一次，无自动eval/整段help。全部Flash/security保护在最后启动前；之后只有UART读取与本地解析，没有新UART/TCP交互或LCD独立目视。旧12UART/24TCP不能外推本版，见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。
 
+## 帮助改进（仅源码，尚未部署）
+
+新版 `:help` 按编译配置列出 URL 加载、状态/取消、`(app-run demo)`、应用停止与清理步骤，同时区分 UART 和 TCP 的 Ctrl-C。它只在普通终端可用：加载时先 `:load-status` 或 `:load-cancel`；应用运行时用 UART Ctrl-C 或 TCP `:stop`，等待退出完成后再 `:help` 或 `:reset`。正常停止保留定义；`:reset` 停止所有 context 并清空所有 RAM 定义，不重启设备。下载阶段取消保留原定义，加载求值阶段取消则清空所有定义。
+
+当前板上仍是原 0.5.0 帮助文本，新帮助未部署、未实机测试；新固件写入须另行准确批准。URL、应用和 RAM 清理的具体语义不因帮助改动而改变。
+
 ## URL加载接口（已部署，实际HTTPS加载未测）
 
 新开发配置提供`(app-load-url "https://…/app.lisp")`与`:load-status`/`:load-cancel`，后台下载/完整验证后由原owner加载最多32KiB源码，再显式app-run；普通REPL仍1023字节。网络和求值取消语义不同，不做顶层定义事务回滚。接口已随0.5.0启用，但本次未发URL/demo命令，详见 [APP_URL_LOADING.md](APP_URL_LOADING.md)。新源码运行时额外预留约32KiB PSRAM独立reader区，不挤占LispBM通用64KiB池；原固定对齐、probe与5秒协作式限制保留。
@@ -66,10 +72,10 @@
 - UART0 / 115200 输入；不改原 UART 引脚与波特率。现有 SDK 日志也使用 UART，可能穿插 REPL 输出；LCD 只显示 REPL 内容。
 - 固定 ILI9341 320×240、8×12 字符单元、40列×20行：19行输出滚动＋末行输入窗口。ASCII 32–126，保留大小写；不支持中文、ANSI/VT100 全协议、历史浏览或编辑器。
 - Enter 求值；括号/数组/字符串未闭合时继续下一行。扫描器只判断续行，真正语法检查由 LispBM 完成。
-- BS/DEL 删除当前行末字符；Ctrl-U 清除当前行；Ctrl-C 取消输入/求值并清除**全部 RAM 定义**。
+- BS/DEL 删除当前行末字符；Ctrl-U 清除当前行。普通终端的 UART Ctrl-C 取消输入/求值并清除**全部 RAM 定义**；TCP Ctrl-C 只清输入。应用或 URL 加载期间的 UART Ctrl-C 语义见上文。
 - `:help` 帮助、`:clear` 清 LCD 输出但保留定义、`:reset` 清全部 RAM 定义，不重启 ESP32。
 - 每次只接受一个提交；求值期间除 Ctrl-C 外不接收新源码。不要粘贴多条独立提交期待自动排队。
-- 不写 NVS、分区、文件系统，不加载或保存工作空间，不注册 GPIO、网络、DSP、音频或任意内存访问扩展。
+- 第一阶段不写 NVS、分区、文件系统，不加载或保存工作空间，不注册 GPIO、网络、DSP、音频或任意内存访问扩展。后续 URL→RAM 加载器是独立扩展，不提供持久工作空间。
 
 示例（当前UART或Wi-Fi客户端）：
 
