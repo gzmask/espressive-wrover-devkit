@@ -106,7 +106,9 @@ LCD沿用固定ILI9341、方向、10MHz SPI及200ms周期，tick目标约5Hz，�
 
 [`examples/lisp/demo.lisp`](../examples/lisp/demo.lisp)是658字节、单个`define`表单（注释放在已打开的表单内部，避免REPL先提交独立注释行），未自动运行。它画矩形、线和文字；普通按键显示反馈，`q`返回终端。
 
-可用现有REPL续行输入加载此定义，完成后单独提交`(app-run demo)`；普通输入仍限1023字节，不要粘贴多条独立提交期待自动排队。0.5.0另提供最多32KiB的HTTPS URL→RAM loader，见上节；没有`:load`本地文件命令或电脑端文件上传器，不读写Flash数据分区。
+[`examples/lisp/tinygl.lisp`](../examples/lisp/tinygl.lisp)是TinyGL风格的软件3D线框立方体，**不是**TinyGL库或OpenGL实现。它用32项Q10正弦表、整数投影和现有`gfx-line`绘制；不需要浮点/三角函数扩展。加载后提交`(app-run tinygl)`；`p`或空格暂停/继续，`q`退出，TCP对应`:key p`／`:key q`，`:stop`仍可停止。定义仅在RAM；额外的`tinygl-*`全局定义在正常退出后保留，`:reset`或重启清除。
+
+可用现有REPL续行输入加载`demo`定义，完成后单独提交`(app-run demo)`；普通输入仍限1023字节，不要粘贴多条独立提交期待自动排队。`tinygl.lisp`超过此限制，需通过已启用的最多32KiB HTTPS URL→RAM loader加载，见上节；没有`:load`本地文件命令或电脑端文件上传器，不读写Flash数据分区。新增主机集成测试实际经该loader加载TinyGL源码，逐帧和独立整数投影预期比对首帧/32相位、暂停、TCP/UART停止、八次重启式启停及256帧压力；这不是设备、LCD目视或网络HTTPS验收。
 
 ## 离线构建与测试
 
@@ -127,7 +129,7 @@ cmake --build .local/host-build-lisp-app --parallel 4
 ctest --test-dir .local/host-build-lisp-app --output-on-failure
 ```
 
-默认64位与额外value32/pointer64模型各 **128项C ASan/UBSan通过**；相对于原96项新增32项：6画布/光栅/控制、23真实Lisp应用用例、1新增初始化故障、1并发画布、1socket/owner模型。包括12秒模拟应用寿命、初始化/求值/退出错误和超时、GC/匿名closure/50次启停、增量帧、输入溢出、UART Ctrl-C、原终端保留、加载不自动运行、生产TCP session的真实socketpair启动及时回复/拒绝源码/key/EOF/复连/stop。
+默认64位与额外value32/pointer64模型各 **133项C ASan/UBSan通过**；相对于原96项新增37项：6画布/光栅/控制、23真实Lisp应用用例、1新增初始化故障、1并发画布、1socket/owner模型及5项TinyGL URL加载/首帧与相位/控制/启停/压力测试。包括12秒模拟应用寿命、初始化/求值/退出错误和超时、GC/匿名closure/50次启停、增量帧、输入溢出、UART Ctrl-C、原终端保留、加载不自动运行、生产TCP session的真实socketpair启动及时回复/拒绝源码/key/EOF/复连/stop。
 
 并发测试用两个主机线程检查50次启动/恢复中的整帧不可变；网络测试用真实LispBM和生产session，但邮箱/调度为主机模型，不是FreeRTOS/lwIP/ESP32证据。额外word32模型仍使用已有Rosetta/低地址测试分配，不等价于目标ABI；新TCP测试最初因严格POSIX宏隐藏macOS `MAP_ANON`而编译阻断，已在该测试声明Darwin扩展后通过，无设备访问或固件重试。
 
