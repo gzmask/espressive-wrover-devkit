@@ -399,7 +399,9 @@ static void finish_callback(void)
     }
     if (job == APP_INIT && callback_error)
         begin_restore();
-    next_tick_ms = clock_ms + APP_FRAME_MS;
+    /* Spend only the remainder of this callback's frame budget. A late callback
+     * starts the next frame when drawable, rebasing on that new start; no catch-up. */
+    next_tick_ms = started_ms + APP_FRAME_MS;
 }
 void lisp_app_runtime_step(uint64_t now_ms)
 {

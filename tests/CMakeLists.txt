@@ -238,7 +238,8 @@ if(ENABLE_LISPBM_TESTS)
     add_test(NAME lisp_app_tcp COMMAND test_lisp_app_tcp)
     set_tests_properties(lisp_app_tcp PROPERTIES TIMEOUT 15)
     foreach(case lifecycle long init-error step-error exit-error timeout background controls backpressure validation gc root reset
-                 launch-error exit-timeout overflow incremental bad-numbers cancel-start restore-timeout display-fault uart-stop demo)
+                 launch-error exit-timeout overflow incremental bad-numbers cancel-start restore-timeout display-fault uart-stop demo
+                 cadence-short cadence-overrun cadence-no-catchup cadence-backpressure cadence-key)
         add_test(NAME lisp_app_runtime_${case} COMMAND test_lisp_app_runtime ${case})
     endforeach()
     add_test(NAME repl_session COMMAND test_repl_session)

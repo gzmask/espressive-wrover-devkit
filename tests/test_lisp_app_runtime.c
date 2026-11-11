@@ -12,16 +12,27 @@ static char log_text[65536];
 static size_t used;
 static uint64_t now;
 static bool render = true;
+static bool record_cadence;
+static uint64_t draw_times[16], publish_times[16];
+static unsigned draws, publications;
 static bool backend_begin(void *user)
 {
     return lisp_app_canvas_begin(user);
 }
 static uint16_t *backend_draw(void *user)
 {
+    if (record_cadence) {
+        assert(draws < sizeof(draw_times) / sizeof(draw_times[0]));
+        draw_times[draws++] = now;
+    }
     return lisp_app_canvas_draw(user);
 }
 static bool backend_publish(void *user)
 {
+    if (record_cadence) {
+        assert(publications < sizeof(publish_times) / sizeof(publish_times[0]));
+        publish_times[publications++] = now;
+    }
     return lisp_app_canvas_publish(user);
 }
 static void backend_activate(void *user)
@@ -83,6 +94,33 @@ static void stop(void)
     for (unsigned i = 0; i < 6200 && lisp_runtime_app_active(); i++)
         advance(1);
     assert(!lisp_runtime_app_active());
+}
+static void cadence_begin(const char *init)
+{
+    /* Deterministic owner clock; LCD acknowledgment is controlled separately. */
+    render = false;
+    record_cadence = true;
+    launch(init, "(progn (yield 80000) (gfx-present))", "t");
+}
+static void wait_publication(unsigned target)
+{
+    for (unsigned i = 0; i < 6000 && publications < target; i++)
+        advance(1);
+    assert(publications == target && draws == target);
+    assert(lisp_runtime_app_active() && !strstr(log_text, "ERROR:"));
+}
+static void acknowledge_frame(void)
+{
+    lisp_app_frame_t frame;
+    assert(canvas.pending >= 0 && lisp_app_canvas_acquire(&canvas, &frame));
+    lisp_app_canvas_complete(&canvas, &frame, true);
+}
+static void cadence_end(void)
+{
+    record_cadence = false;
+    render = true;
+    stop();
+    assert(!strstr(log_text, "ERROR:"));
 }
 int main(int argc, char **argv)
 {
@@ -163,6 +201,67 @@ int main(int argc, char **argv)
         render = true;
         advance(500);
         assert(!lisp_runtime_app_active());
+    } else if (!strcmp(argv[1], "cadence-short")) {
+        cadence_begin("(progn (yield 80000) (gfx-clear 0))");
+        for (unsigned i = 0; i < 4; i++) {
+            wait_publication(i + 1);
+            assert(publish_times[i] - draw_times[i] >= 80);
+            assert(publish_times[i] - draw_times[i] < 200);
+            if (i != 0)
+                assert(draw_times[i] - draw_times[i - 1] == 200);
+            acknowledge_frame();
+        }
+        cadence_end();
+    } else if (!strcmp(argv[1], "cadence-overrun")) {
+        render = false;
+        record_cadence = true;
+        launch("(progn (yield 240000) (gfx-clear 0))", "(progn (yield 240000) (gfx-present))", "t");
+        for (unsigned i = 0; i < 4; i++) {
+            wait_publication(i + 1);
+            assert(publish_times[i] - draw_times[i] >= 240);
+            if (i != 0)
+                assert(draw_times[i] == publish_times[i - 1] + 1);
+            acknowledge_frame();
+        }
+        cadence_end();
+    } else if (!strcmp(argv[1], "cadence-no-catchup")) {
+        cadence_begin("(progn (yield 750000) (gfx-clear 0))");
+        for (unsigned i = 0; i < 4; i++) {
+            wait_publication(i + 1);
+            if (i == 1)
+                assert(draw_times[i] == publish_times[i - 1] + 1);
+            if (i > 1)
+                assert(draw_times[i] - draw_times[i - 1] == 200);
+            acknowledge_frame();
+        }
+        cadence_end();
+    } else if (!strcmp(argv[1], "cadence-backpressure")) {
+        cadence_begin("(progn (yield 80000) (gfx-clear 0))");
+        wait_publication(1);
+        advance(500);
+        assert(draws == 1 && publications == 1); /* Never overwrite a pending frame. */
+        uint64_t released_at = now;
+        acknowledge_frame();
+        wait_publication(2);
+        assert(draw_times[1] == released_at);
+        acknowledge_frame();
+        wait_publication(3);
+        assert(draw_times[2] - draw_times[1] == 200); /* Rebase, do not catch up. */
+        acknowledge_frame();
+        cadence_end();
+    } else if (!strcmp(argv[1], "cadence-key")) {
+        cadence_begin("(progn (yield 80000) (gfx-clear 0))");
+        wait_publication(1);
+        acknowledge_frame();
+        uint64_t key_at = now;
+        assert(lisp_runtime_app_key('p'));
+        wait_publication(2);
+        assert(draw_times[1] == key_at && key_at < draw_times[0] + 200);
+        acknowledge_frame();
+        wait_publication(3);
+        assert(draw_times[2] - draw_times[1] == 200);
+        acknowledge_frame();
+        cadence_end();
     } else if (!strcmp(argv[1], "validation")) {
         evaluate("(app-run (list 1 2 3))");
         assert(strstr(log_text, "ERROR:") && !lisp_runtime_app_active());
