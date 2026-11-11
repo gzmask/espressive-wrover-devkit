@@ -1,0 +1,2 @@
+# Experimental two-strip pipeline; requires an explicitly enabled board display.
+CONFIG_BOARD_DISPLAY_DMA_PIPELINE=y

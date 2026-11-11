@@ -1,12 +1,20 @@
-# 单应用分区＋USB更新／恢复（当前0.5.6 factory）
+# 单应用分区＋USB更新／恢复（当前0.5.7 factory）
 
-## 当前0.5.6：条带转换优化，仅应用更新
+## 当前0.5.7：DMA双条带流水线，仅应用更新
+
+准确批准SHA256 `499b106100c441fc274305ac9b1cc912091bb31e5ec86311c58b83d3d6ae56da`／1197712字节／`[0x10000,0x135000)`／293扇区后，新同板/8字段/actual完整0.5.6基线及旧引导预检通过，新marker唯一USB应用写入66.5秒。app/FFpadding/全部补集/8字段/actual完整4MiB保护通过，无写重试/OTA/恢复或引导/表/NVS/旧控制/eFuse写入。
+
+一次正常RTS启动180.138秒只读通过：factory/0.5.7/冻结ELF前缀dcdce295b、2139ms ready/probe PASS、PSRAM六模式、固定ILI9341帧1→1351/心跳0→177、联网后34条healthy。该阶段无UART/TCP表达式或URL/demo；随后另记一次TCP连接、一次Tiny2D URL加载、两组各50绘制回调并自行退出/恢复终端。整帧墙钟均值Tiny2D 182.330→148.104ms、空present 170.006→140.517ms，非物理LCD FPS，见 [DMA流水线](DMA_PIPELINE.md)。
+
+最新私有`.local/flash/dma-0.5.7/post-protection/current-0.5.7-expected.bin`由新actual SDK匹配0.5.6参考＋准确app/FFpadding重建并actual完整4MiB匹配，非新双读，含旧B秘密；旧0.5.6及更早全片不再适用。全部Flash/security检查在最后只读启动前，之后只TCP RAM诊断未再读。冻结PENDING及SHA256SUMS不改，执行验收/诊断另记。UART/TCP已释放、写授权耗尽；新写须新准确hash/范围、新同板8字段及最新actual完整0.5.7基线、新marker，不自动重试/恢复/OTA/引导/表/NVS/eFuse变化。
+
+## 历史0.5.6：条带转换优化，仅应用更新
 
 准确批准SHA256 `b6eb17035f6ef25c6f21fa4cd015f121742983b562edb4bc21170dc1d61cb550`／1197216字节／`[0x10000,0x135000)`／293扇区。首次预检检测到下载模式但无sync、**应用写入0**；用户重插后独立新同板/8字段/实际完整0.5.5基线及旧引导预检通过，新marker唯一USB应用写入66.4秒，写后app/FFpadding/全部补集/8字段/实际完整4MiB匹配；无USB写重试/OTA/恢复或引导/表/NVS/旧控制/eFuse写入。
 
 保护后一次正常RTS启动180.198秒只读通过：factory/0.5.6/冻结ELF前缀9f0d25ef8、2139ms ready/probe PASS、PSRAM六模式、ILI9341帧1→1051/心跳0→177、ONLINE8509ms/TCP8569ms、34条healthy。随后一次TCP连接实际URL加载Tiny2D并完成两组各50回调设备侧计时，均自行退出；无UART打开、额外复位或Flash/security访问，结果见 [计时诊断](PERF_DIAGNOSTICS.md)。
 
-最新私有`.local/flash/strip-0.5.6/post-protection/current-0.5.6-expected.bin`由actual SDK匹配0.5.5参考＋新app/FFpadding重建并actual完整4MiB匹配，非新双读，旧0.5.5及更早全片不再代表当前应用；含旧B秘密。所有Flash/security核验在部署只读启动前，后续RAM诊断未再读。冻结PENDING、首次失败和旧execution-CONTINUE均保留，新记录见execution-CONTINUE-replug；写权限耗尽，UART/TCP释放。新写须新准确hash/范围、同板8字段、最新actual完整0.5.6基线和新marker。
+当时私有`.local/flash/strip-0.5.6/post-protection/current-0.5.6-expected.bin`由actual SDK匹配0.5.5参考＋新app/FFpadding重建并actual完整4MiB匹配，非新双读；后续已被0.5.7替换，不再代表当前应用。所有Flash/security核验在部署只读启动前，后续RAM诊断未再读。冻结PENDING、首次失败和旧execution-CONTINUE均保留，新记录见execution-CONTINUE-replug；写权限耗尽，UART/TCP释放。新写须新准确hash/范围、同板8字段、最新actual完整0.5.7基线和新marker。
 
 ## 历史0.5.5：设备侧计时诊断，仅应用更新
 
@@ -14,7 +22,7 @@
 
 保护后一次正常RTS启动180.073秒只读通过：factory/0.5.5/冻结ELF前缀91f024584、2139ms ready/probe PASS、PSRAM六模式、ILI9341帧1→1051/心跳0→177、ONLINE8509ms/TCP8569ms、34条healthy。该次启动验收无UART/TCP表达式或URL/demo；随后一次TCP连接实际URL加载Tiny2D并完成两组各50回调设备侧计时，均自行退出；无UART打开、额外复位或Flash/security访问。结果见 [计时诊断](PERF_DIAGNOSTICS.md)。
 
-当时私有`.local/flash/perf-0.5.5/post-protection/current-0.5.5-expected.bin`由actual SDK匹配0.5.4参考＋新app/FFpadding重建并actual完整4MiB匹配，非新双读；后续已被0.5.6替换，不再代表当前应用。所有Flash/security核验在部署只读启动前，后续RAM诊断未再读Flash/security。冻结PENDING历史不改，执行记录另存；写权限耗尽，UART/TCP释放。后续新写边界与当前基线以上节0.5.6为准。
+当时私有`.local/flash/perf-0.5.5/post-protection/current-0.5.5-expected.bin`由actual SDK匹配0.5.4参考＋新app/FFpadding重建并actual完整4MiB匹配，非新双读；后续已被0.5.6替换，不再代表当前应用。所有Flash/security核验在部署只读启动前，后续RAM诊断未再读Flash/security。冻结PENDING历史不改，执行记录另存；写权限耗尽，UART/TCP释放。后续新写边界与当前基线以首节0.5.7为准。
 
 ## 历史0.5.4：清屏与矩形优化，仅应用更新
 
@@ -22,7 +30,7 @@
 
 保护后一次正常RTS启动180.025秒只读通过：factory/0.5.4/冻结ELF前缀d6aba6efe、2138ms ready/probe PASS、PSRAM六模式、ILI9341帧1→1051/心跳0→177、ONLINE8508ms/TCP8568ms、34条healthy。该次启动验收没有UART/TCP表达式或URL/demo，复位清除RAM定义；后续按用户请求进行本版六组RAM profiling，Tiny2D约5.07逻辑回调/秒，较0.5.3本次对比5.32未见提升，不是物理LCD FPS，详见 [应用层](LISP_APPS.md)。
 
-当时私有`.local/flash/raster-0.5.4/post-protection/current-0.5.4-expected.bin`由actual SDK匹配0.5.3参考＋新app/FFpadding重建并actual完整4MiB匹配，非新双读；已被0.5.5替换，不再代表当前应用。所有Flash/security保护在部署只读启动前，后续用户请求了RAM profiling，没有再读Flash/security。冻结candidate/CONTINUE/resume及SHA256SUMS不改，实际authorization/marker/执行与验收另存。写权限耗尽，UART/TCP释放；后续新写边界和当前基线以首节0.5.6为准。
+当时私有`.local/flash/raster-0.5.4/post-protection/current-0.5.4-expected.bin`由actual SDK匹配0.5.3参考＋新app/FFpadding重建并actual完整4MiB匹配，非新双读；已被0.5.5替换，不再代表当前应用。所有Flash/security保护在部署只读启动前，后续用户请求了RAM profiling，没有再读Flash/security。冻结candidate/CONTINUE/resume及SHA256SUMS不改，实际authorization/marker/执行与验收另存。写权限耗尽，UART/TCP释放；后续新写边界和当前基线以首节0.5.7为准。
 
 ## 历史0.5.3：100ms目标周期，仅应用更新
 
@@ -46,7 +54,7 @@
 
 一次正常RTS启动只读180.183秒：factory/0.5.1/冻结ELF前缀、ready/probe/PSRAM六模式/ILI9341帧1→851/心跳0→177、联网后34条healthy通过。没有UART/TCP表达式、URL或demo；新帮助交互和LCD目视未验收。重启清除RAM定义；串口已释放，无后台监控。
 
-当时私有 `.local/flash/help-0.5.1/post-protection/current-0.5.1-expected.bin` 重建且实际完整SDK匹配，非新双读；该次全部Flash/security核验在最后启动前。后续0.5.1实际URL加载Tiny2D做过RAM profiling；再后来0.5.2更新已替换应用，0.5.1全片不再代表当前状态。旧B秘密仍保留但不是备用槽；后续新写须使用当前0.5.6实际基线并另获准确批准。
+当时私有 `.local/flash/help-0.5.1/post-protection/current-0.5.1-expected.bin` 重建且实际完整SDK匹配，非新双读；该次全部Flash/security核验在最后启动前。后续0.5.1实际URL加载Tiny2D做过RAM profiling；再后来0.5.2更新已替换应用，0.5.1全片不再代表当前状态。旧B秘密仍保留但不是备用槽；后续新写须使用当前0.5.7实际基线并另获准确批准。
 
 ## 历史0.5.0：仅应用更新，URL loader已编译启用
 
@@ -155,4 +163,4 @@ idf.py -B .local/build-single-usb-full \
 
 **恢复当前旧双槽0.2.4不只是重刷一个app**：旧应用带双槽OTA服务，不能在新factory表中直接当作兼容恢复镜像。恢复须配套旧分区表、A/B内容及需要恢复的控制记录，明确所有被新单槽应用覆盖的范围，并重新批准；不自动整片写回旧快照。
 
-最新检查点为 `.local/flash/strip-0.5.6/`；当前事实以execution-CONTINUE-replug、preflight-blocked、acceptance-summary及target-timing等执行记录为准。原candidate/CONTINUE/resume的PENDING冻结历史不改，0.5.5及更旧冻结产物也不改。
+最新检查点为 `.local/flash/dma-0.5.7/`；当前事实以execution-CONTINUE、acceptance-summary及target-timing等执行记录为准。原candidate/CONTINUE/resume的PENDING冻结历史不改，0.5.6及更旧冻结产物也不改。

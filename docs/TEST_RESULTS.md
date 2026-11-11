@@ -2,12 +2,25 @@
 
 硬件初检：2026-11-07 01:14 UTC。状态采用PASS / FAIL / NOT TESTED；历史未实现/旧端口只属于对应版本，不能当作当前限制或新写入许可。
 
-## 当前0.5.6 factory：条带优化与目标计时
+## 当前0.5.7 factory：DMA流水线部署与有限计时
+
+- **PASS（写入与保护）** — 准确499b1061.../1197712字节/[10000,135000)/293扇区批准，新同板/8字段/actual完整0.5.6基线/旧引导通过，唯一USB应用写入66.5秒；app/FFpadding/全部补集/8字段/actual完整4MiB匹配。无写重试/OTA/恢复/引导/表/NVS/eFuse写入。
+- **PASS（180.138秒正常启动只读）** — factory/0.5.7/冻结ELF前缀dcdce295b、2139ms ready/probe PASS、PSRAM六模式、ILI9341帧1→1351/心跳0→177、34条healthy。Flash/security全部在启动前，启动阶段无UART/TCP表达式。
+- **PASS（有限交互）** — 随后一个TCP连接、一次准确Tiny2D URL加载、两组各50绘制回调/51完整APP_STEP及LCD样本，自行退出/恢复终端。LCD整帧Tiny2D 182.330→148.104ms、空present170.006→140.517ms，墙钟非CPU/物理FPS；lcd_transfer与render重叠，不跨行相加。
+- **NOT TESTED** — 独立LCD目视/颜色/撕裂/物理FPS、长期堆/DMA压力、丢callback/超时硬件注入、UART/按键/stop回归。UART/TCP释放，写授权耗尽；最新current-0.5.7-expected.bin重建且actual完整SDK匹配，非新双读。详见 [DMA流水线](DMA_PIPELINE.md)。
+
+## 历史源码：双条带 DMA 流水线离线验证（随后已部署）
+
+- **PASS（主机）** — 两种LispBM主机模型各178项CTest；新模型覆盖各条带渲染/提交/等待失败、最后完成、缓冲别名/重叠、真实应用/终端/诊断生产渲染器的逐字节等价，以及独立线程模拟50帧/750次异步读取。另验证真实画布中途发布/退出/恢复与失败隔离、375组模拟时序；改回串行、提前返回、复用在途缓冲的三个破坏版本均被拒绝。模型不是ESP32或DMA硬件证据。28 Python及4历史OTA mock通过；上游既有UBSan对齐诊断保留。
+- **PASS（构建）** — 默认关闭；独立构建显式启用full TCP/URL+计时、UART+计时、full无计时、无REPL诊断画面，以及full关闭流水线、显示关闭共六种配置。C格式和纯调度核心Clang分析通过。
+- **NOT TESTED（当时硬件）** — 该离线阶段没有设备操作、复位或写入，仍为0.5.6记录；后续准确批准并部署的有限实测见上节，不将模型当作硬件验证。新固件仍须新准确hash/擦写范围批准。详见 [DMA流水线](DMA_PIPELINE.md)。
+
+## 历史0.5.6 factory：条带优化与目标计时（已被0.5.7替换）
 
 - **PASS（写入与保护）** — 首次预检无sync、应用写入0；用户重插后，新同板/8字段/实际完整0.5.5基线/旧引导通过，唯一USB应用写入及app/FFpadding/全部补集/8字段/实际完整4MiB预期匹配。无写重试/OTA/恢复或引导/表/NVS/eFuse写入。
 - **PASS（正常启动只读180.198秒）** — factory/0.5.6/冻结ELF前缀匹配、ready/probe PASS、PSRAM六模式、ILI9341帧1→1051、联网后34条healthy。Flash/security检查均在启动前。
 - **PASS（有限交互）** — 随后通过TCP实际HTTPS加载Tiny2D，Tiny2D与空present各完成50绘制回调并自行退出、恢复终端。设备侧Tiny2D条带转换平均66.006→50.233ms，LCD整帧197.100→182.330ms；含调度/仪表开销，不是物理FPS。详见 [计时诊断](PERF_DIAGNOSTICS.md)。
-- **NOT TESTED** — LCD独立目视/颜色/撕裂/物理FPS、UART控制、TCP按键/中断、真实断网或TLS故障注入、完整PSRAM压力及长测。UART/TCP已释放，无剩余写权限。最新参考`.local/flash/strip-0.5.6/post-protection/current-0.5.6-expected.bin`重建且实际SDK匹配，非新双读。
+- **NOT TESTED** — LCD独立目视/颜色/撕裂/物理FPS、UART控制、TCP按键/中断、真实断网或TLS故障注入、完整PSRAM压力及长测。UART/TCP已释放，无剩余写权限。当时参考`.local/flash/strip-0.5.6/post-protection/current-0.5.6-expected.bin`重建且实际SDK匹配，非新双读；后续被0.5.7替换。
 
 ## 历史0.5.0 factory：一次USB应用更新／只读启动通过，URL交互当时未测
 

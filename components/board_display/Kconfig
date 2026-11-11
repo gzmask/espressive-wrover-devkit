@@ -2,6 +2,16 @@ menu "WROVER board display"
     config BOARD_DISPLAY_ENABLE
         bool "Enable confirmed ILI9341 board display"
         default n
+    config BOARD_DISPLAY_DMA_PIPELINE
+        bool "Overlap LCD strip rendering with one DMA transfer (experimental)"
+        depends on BOARD_DISPLAY_ENABLE
+        default n
+        help
+            Allocate a second internal DMA-capable strip buffer and render the
+            next strip while the previous transfer is in flight. The SPI clock
+            and transaction queue depth are unchanged. DMA resources are
+            quarantined on uncertain completion. Normal operation has limited
+            hardware coverage; fault paths and visual output remain unvalidated.
     config BOARD_WROVER_KIT_V41_CONFIRMED
         bool "PCB silkscreen and official v4.1 LCD wiring confirmed"
         depends on BOARD_DISPLAY_ENABLE

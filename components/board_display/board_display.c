@@ -15,6 +15,9 @@
 #include <stdlib.h>
 
 #include "display_probe_logic.h"
+#if CONFIG_BOARD_DISPLAY_DMA_PIPELINE
+#include "display_pipeline.h"
+#endif
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
 #include "esp_app_desc.h"
@@ -152,6 +155,9 @@ typedef struct {
     esp_lcd_panel_handle_t panel;
     SemaphoreHandle_t transfer_done;
     uint8_t *strip;
+#if CONFIG_BOARD_DISPLAY_DMA_PIPELINE
+    uint8_t *next_strip;
+#endif
     bool bus_initialized;
     bool backlight_configured;
     bool dma_uncertain;
@@ -282,6 +288,93 @@ static esp_err_t begin_display(display_context_t *context)
     return ESP_OK;
 }
 
+#if CONFIG_BOARD_DISPLAY_DMA_PIPELINE
+typedef struct {
+    display_context_t *context;
+#if CONFIG_LISP_REPL_ENABLE
+    const lcd_terminal_t *view;
+    const uint16_t *pixels;
+#else
+    const display_probe_view_t *view;
+#endif
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    lisp_perf_token_t timing;
+    uint64_t render_us, transfer_us, transfer_started;
+#endif
+} pipeline_frame_t;
+
+static int pipeline_render(void *user, uint8_t *buffer, unsigned first_row, unsigned rows)
+{
+    pipeline_frame_t *frame = user;
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    uint64_t render_started = frame->timing.active ? lisp_perf_now_us() : 0;
+#endif
+#if CONFIG_LISP_REPL_ENABLE
+    bool rendered = frame->pixels
+                        ? lisp_app_render_strip(frame->pixels, buffer, STRIP_BYTES, first_row, rows)
+                        : lcd_terminal_render_strip(frame->view, buffer, STRIP_BYTES, first_row, rows);
+#else
+    bool rendered = display_probe_render_strip(buffer, STRIP_BYTES, first_row, rows, frame->view);
+#endif
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    if (frame->timing.active)
+        frame->render_us += lisp_perf_now_us() - render_started;
+#endif
+    return rendered ? ESP_OK : ESP_ERR_INVALID_ARG;
+}
+
+static int pipeline_submit(void *user, const uint8_t *buffer, unsigned first_row, unsigned rows)
+{
+    pipeline_frame_t *frame = user;
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    if (frame->timing.active)
+        frame->transfer_started = lisp_perf_now_us();
+#endif
+    return esp_lcd_panel_draw_bitmap(frame->context->panel, 0, (int)first_row, DISPLAY_WIDTH,
+                                     (int)(first_row + rows), buffer);
+}
+
+static int pipeline_wait(void *user)
+{
+    pipeline_frame_t *frame = user;
+    if (xSemaphoreTake(frame->context->transfer_done, pdMS_TO_TICKS(2000)) != pdTRUE)
+        return ESP_ERR_TIMEOUT;
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    if (frame->timing.active)
+        frame->transfer_us += lisp_perf_now_us() - frame->transfer_started;
+#endif
+    return ESP_OK;
+}
+
+#if CONFIG_LISP_REPL_ENABLE
+static esp_err_t draw_frame(display_context_t *context, const lcd_terminal_t *view, const uint16_t *pixels)
+#else
+static esp_err_t draw_frame(display_context_t *context, const display_probe_view_t *view)
+#endif
+{
+    pipeline_frame_t frame = {.context = context, .view = view};
+#if CONFIG_LISP_REPL_ENABLE
+    frame.pixels = pixels;
+#endif
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    frame.timing = pixels ? lisp_perf_begin() : (lisp_perf_token_t){0};
+#endif
+    const display_pipeline_ops_t ops = {&frame, pipeline_render, pipeline_submit, pipeline_wait};
+    display_pipeline_result_t outcome = display_pipeline_run(&ops, context->strip, context->next_strip,
+                                                             STRIP_BYTES, DISPLAY_HEIGHT, DISPLAY_STRIP_ROWS);
+    if (outcome.status != DISPLAY_PIPELINE_OK) {
+        context->dma_uncertain |= outcome.dma_uncertain;
+        return outcome.status == DISPLAY_PIPELINE_INVALID ? ESP_ERR_INVALID_STATE : (esp_err_t)outcome.error;
+    }
+#if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
+    lisp_perf_add(LISP_PERF_LCD_RENDER, frame.timing, frame.render_us);
+    /* Submit-to-observed-completion includes any next-strip rendering that overlaps DMA. */
+    lisp_perf_add(LISP_PERF_LCD_TRANSFER, frame.timing, frame.transfer_us);
+    lisp_perf_end(LISP_PERF_LCD_FRAME, frame.timing);
+#endif
+    return ESP_OK;
+}
+#else
 #if CONFIG_LISP_REPL_ENABLE
 static esp_err_t draw_frame(display_context_t *context, const lcd_terminal_t *view, const uint16_t *pixels)
 #else
@@ -332,6 +425,7 @@ static esp_err_t draw_frame(display_context_t *context, const display_probe_view
 #endif
     return ESP_OK;
 }
+#endif /* CONFIG_BOARD_DISPLAY_DMA_PIPELINE */
 
 static void release_resources(display_context_t *context)
 {
@@ -354,6 +448,9 @@ static void release_resources(display_context_t *context)
     }
     vSemaphoreDelete(context->transfer_done);
     heap_caps_free(context->strip);
+#if CONFIG_BOARD_DISPLAY_DMA_PIPELINE
+    heap_caps_free(context->next_strip);
+#endif
     free(context);
 }
 
@@ -476,6 +573,9 @@ esp_err_t board_display_start(void)
         return ESP_ERR_NO_MEM;
     }
     context->strip = heap_caps_malloc(STRIP_BYTES, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+#if CONFIG_BOARD_DISPLAY_DMA_PIPELINE
+    context->next_strip = heap_caps_malloc(STRIP_BYTES, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+#endif
 #if CONFIG_LISP_APP_ENABLE
     app_pixels = heap_caps_aligned_calloc(8, 2 * LISP_APP_PIXELS, sizeof(uint16_t),
                                           MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -487,11 +587,17 @@ esp_err_t board_display_start(void)
 #endif
     context->transfer_done = xSemaphoreCreateBinary();
     if (context->strip == NULL || context->transfer_done == NULL ||
+#if CONFIG_BOARD_DISPLAY_DMA_PIPELINE
+        context->next_strip == NULL ||
+#endif
         xTaskCreate(display_task, "lcd_diagnostic", DISPLAY_STACK_BYTES, context, 1, NULL) != pdPASS) {
         if (context->transfer_done != NULL) {
             vSemaphoreDelete(context->transfer_done);
         }
         heap_caps_free(context->strip);
+#if CONFIG_BOARD_DISPLAY_DMA_PIPELINE
+        heap_caps_free(context->next_strip);
+#endif
 #if CONFIG_LISP_APP_ENABLE
         heap_caps_free(app_pixels);
         app_pixels = NULL;
