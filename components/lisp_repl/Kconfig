@@ -6,7 +6,7 @@ menu "LispBM REPL"
         help
             Experimental, opt-in. Uses UART0/115200 and the confirmed LCD.
             Lisp state and the upstream image are RAM-only. No NVS, filesystem,
-            Bluetooth, DSP or GPIO extensions. Ctrl-C resets the Lisp environment.
+            Bluetooth, DSP or arbitrary GPIO extensions. LCD lifecycle controls\n            do not mount SD cards. Ctrl-C resets the Lisp environment.
             Requires a separately installed pinned LispBM checkout (GPLv3+).
     config LISP_APP_ENABLE
         bool "Enable one foreground Lisp application with a full-screen canvas"

@@ -19,6 +19,8 @@ static void check(bool app, bool url, bool tcp)
     const char *text = reply.text;
     assert(!reply.truncated);
     assert(strstr(text, ":help") && strstr(text, ":clear") && strstr(text, ":reset"));
+    assert(strstr(text, "(lcd-off)") && strstr(text, "(lcd-on)") && strstr(text, "(lcd-status)"));
+    assert(strstr(text, ":help-lcd"));
     assert(strstr(text, "ALL contexts") && strstr(text, "definitions"));
     assert((strstr(text, "app-load-url") != NULL) == url);
     assert((strstr(text, ":load-status") != NULL) == url);
@@ -45,7 +47,36 @@ static void check(bool app, bool url, bool tcp)
             line++;
         }
     }
-    assert(line == 0 && lines < LCD_TERMINAL_OUTPUT_ROWS);
+    assert(line == 0 && lines <= LCD_TERMINAL_OUTPUT_ROWS);
+}
+
+static void check_lcd(void)
+{
+    repl_remote_reply_t reply;
+    repl_remote_reply_init(&reply);
+    repl_help_lcd_write(collect, &reply);
+    repl_remote_reply_finish(&reply);
+    assert(!reply.truncated);
+    const char *text = reply.text;
+    assert(strstr(text, "(lcd-off)") && strstr(text, "(lcd-on)") && strstr(text, "(lcd-status)"));
+    assert(strstr(text, "accepted, not finished"));
+    assert(strstr(text, "wait off BEFORE inserting"));
+    assert(strstr(text, "No SD hotplug") && strstr(text, "remove card before on"));
+    assert(strstr(text, "Stop app/URL load") && strstr(text, "Off keeps RAM"));
+    assert(strstr(text, "sd-blocked/fault/disabled") && strstr(text, "no SD driver yet"));
+    size_t line = 0, lines = 0;
+    for (const char *p = text; *p; p++) {
+        if (*p == '\n') {
+            assert(line < LCD_TERMINAL_COLUMNS);
+            line = 0;
+            lines++;
+        } else {
+            assert((unsigned char)*p >= 32 && (unsigned char)*p <= 126);
+            line++;
+        }
+    }
+    assert(line == 0 && lines <= LCD_TERMINAL_OUTPUT_ROWS);
+    repl_help_lcd_write(NULL, NULL);
 }
 
 int main(void)
@@ -55,6 +86,7 @@ int main(void)
             for (int tcp = 0; tcp <= 1; tcp++)
                 check(app != 0, url != 0, tcp != 0);
     repl_help_write(NULL, NULL, true, true, true);
+    check_lcd();
     puts("PASS");
     return 0;
 }

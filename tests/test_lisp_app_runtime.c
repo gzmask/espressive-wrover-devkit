@@ -15,6 +15,17 @@ static char log_text[65536];
 static size_t used;
 static uint64_t now;
 static bool render = true;
+static display_lifecycle_t lcd_lifecycle;
+static unsigned lcd_requests;
+static bool lcd_request(void *user, bool on)
+{
+    lcd_requests++;
+    return display_lifecycle_request(user, on, true);
+}
+static display_lifecycle_state_t lcd_status(void *user)
+{
+    return ((display_lifecycle_t *)user)->state;
+}
 static bool record_cadence;
 static uint64_t draw_times[16], publish_times[16];
 static unsigned draws, publications;
@@ -175,6 +186,18 @@ int main(int argc, char **argv)
         assert(!lisp_runtime_app_active() && !canvas.enabled);
         evaluate("(twice 21)");
         assert(strstr(log_text, "=> 42"));
+    } else if (!strcmp(argv[1], "lcd-gate")) {
+        display_lifecycle_init(&lcd_lifecycle);
+        display_lifecycle_complete(&lcd_lifecycle, DISPLAY_ON);
+        const display_lifecycle_backend_t lcd = {&lcd_lifecycle, lcd_request, lcd_status};
+        assert(lisp_runtime_lcd_attach(&lcd));
+        launch("(lcd-off)", "t", "t");
+        advance(1000);
+        assert(!lisp_runtime_app_active() && strstr(log_text, "ERROR:"));
+        assert(lcd_requests == 0 && lcd_lifecycle.state == DISPLAY_ON);
+        evaluate("(lcd-off)");
+        assert(strstr(log_text, "=> t") && lcd_requests == 1);
+        assert(lcd_lifecycle.state == DISPLAY_STOPPING);
     } else if (!strcmp(argv[1], "long")) {
         launch("(gfx-clear 31)", "t", "t");
         advance(12000); /* Lifetime is not the 5s request deadline. */

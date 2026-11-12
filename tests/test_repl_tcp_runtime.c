@@ -1,5 +1,6 @@
 #include "lisp_runtime.h"
 #include "lisp_test_storage.h"
+#include "repl_help.h"
 #include "repl_remote_logic.h"
 #include "repl_tcp_session.h"
 #include <assert.h>
@@ -22,7 +23,11 @@ static repl_remote_status_t evaluate(const char *source, size_t length, char *te
     assert(repl_remote_source_valid(source, length));
     assert(capacity >= sizeof(reply.text));
     repl_remote_reply_init(&reply);
-    if (!strcmp(source, ":reset")) {
+    if (!strcmp(source, ":help")) {
+        repl_help_write(output, NULL, true, true, true);
+    } else if (!strcmp(source, ":help-lcd")) {
+        repl_help_lcd_write(output, NULL);
+    } else if (!strcmp(source, ":reset")) {
         assert(lisp_runtime_reset());
         repl_remote_reply_append(&reply, "RAM definitions cleared\n", 24);
     } else {
@@ -75,6 +80,9 @@ int main(void)
     response(pair[0], "no TLS/auth");
     command(pair[0], "(+ 1 2)\n", "=> 3");
     command(pair[0], "(define twice (lambda (x) (* x 2)))\n", "=>");
+    command(pair[0], "(twice 21)\n", "=> 42");
+    command(pair[0], ":help\n", ":help-lcd");
+    command(pair[0], ":help-lcd\n", "wait off BEFORE inserting");
     command(pair[0], "(twice 21)\n", "=> 42");
     command(pair[0], "(print \"hello\")\n", "hello");
     command(pair[0], "(no-such-function)\n", "ERROR:");

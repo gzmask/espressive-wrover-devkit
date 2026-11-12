@@ -2,13 +2,21 @@
 
 ESP-WROVER-KIT v4.1 / 经典 ESP32 的 ESP-IDF 固件：FreeRTOS、PSRAM、ILI9341、自动 Wi-Fi、USB固件更新与 RAM-only LispBM REPL。
 
-## 当前设备：0.5.7 双条带 DMA 流水线（factory已部署）
+## 当前设备：0.5.8 LCD 生命周期（factory已部署）
+
+准确批准 SHA256 `d0f8998c6a35e231084a1ea979213655fb41cd7d963f6ff71124890bd0089fc2`／1,199,600字节／`[0x10000,0x135000)`／293扇区后，新同板/8字段/actual完整0.5.7基线与旧引导预检通过，新marker唯一USB应用写入66.5秒。app/FFpadding/全部补集/8字段/actual完整4MiB保护匹配，无写重试/恢复/OTA或引导/表/NVS/eFuse写入。随后一次180.120秒正常只读启动通过：factory/冻结ELF前缀600353088、2140ms ready/probe PASS、PSRAM六模式、ILI9341帧1→1351/心跳0→177、联网后34条healthy。
+
+已部署 `(lcd-off)`、`(lcd-on)`、`(lcd-status)`；随后按明确请求通过一个TCP连接实际完成一轮关屏/恢复：`on→off→starting→on`，关屏保持3.5秒后REPL仍可求值，RAM测试定义跨周期保留。未插拔/读写SD或独立目视，SD驱动尚未实现。必须先关屏并确认 `off` 才能插卡，停止SD、取卡后才恢复LCD；卡检测只是辅助，不支持运行中插拔。详见 [LCD 生命周期](docs/LCD_LIFECYCLE.md)。
+
+最新私有参考 `.local/flash/lcd-lifecycle-0.5.8/post-protection/current-0.5.8-expected.bin` 重建且actual完整SDK匹配，非新双读；全部Flash/security保护在最终启动前；随后另记一次TCP RAM生命周期测试，没有再次Flash/security访问。写授权耗尽，UART/TCP释放，无后台任务。候选基于当时未提交工作树/base commit `912112b`，不是该提交直接构建。本次提交包含生命周期实现、验收文档与后续 `:help-lcd` 说明页；新说明页尚未重刷，已部署的冻结0.5.8镜像不变。
+
+## 历史0.5.7 双条带 DMA 流水线（已被0.5.8替换）
 
 准确批准SHA256 `499b106100c441fc274305ac9b1cc912091bb31e5ec86311c58b83d3d6ae56da`／1,197,712字节／`[0x10000,0x135000)`／293扇区后，新完整预检通过，唯一USB应用写入66.5秒。app/FFpadding/全部补集/8字段/actual完整4MiB保护通过，无写重试/OTA/恢复或引导/表/NVS/eFuse写入；一次180.138秒正常只读启动healthy。
 
 随后相同方法实测两组各50绘制回调：Tiny2D LCD整帧墙钟均值从0.5.6的182.330ms降至148.104ms（约18.8%），空present从170.006ms降至140.517ms（约17.3%）；均自行退出并恢复终端。流水线增加10KiB内部RAM，SPI仍10MHz、队列深度1；默认关闭，板上明确启用。范围重叠的计时不能相加，不是纯CPU或物理LCD FPS，100ms目标仍未达到。详见 [DMA流水线](docs/DMA_PIPELINE.md)。
 
-最新私有参考为`.local/flash/dma-0.5.7/post-protection/current-0.5.7-expected.bin`，重建且actual完整SDK匹配，非新双读；所有Flash/security检查在只读启动前，后续TCP RAM诊断未再读。写权限耗尽，UART/TCP释放；候选基于未提交工作树/base commit `7baa764`，源码尚未提交。
+最新私有参考为`.local/flash/dma-0.5.7/post-protection/current-0.5.7-expected.bin`，重建且actual完整SDK匹配，非新双读；所有Flash/security检查在只读启动前，后续TCP RAM诊断未再读。写权限耗尽，UART/TCP释放；候选基于当时未提交工作树/base commit `7baa764`，同一实现后来提交 `912112b`，不是从该后续提交重建的镜像。
 
 ## 历史0.5.6 条带转换优化（已被0.5.7替换）
 
@@ -188,7 +196,7 @@ URL源码两主机模型各149项C ASan/UBSan、28Python、4历史mock、六配�
 | [构建](docs/BUILD.md) | 固定工具链、默认关闭与 OTA 配置、测试 |
 | [LispBM REPL](docs/LISP_REPL.md) | 当前UART/LCD与首次失败/修复历史 |
 | [LispBM 应用层](docs/LISP_APPS.md) | 已部署配置；Tiny2D实际运行并退出，LCD目视待验收 |
-| [DMA流水线](docs/DMA_PIPELINE.md) | 默认关闭、板上明确启用；正常路径有限实测通过，目视/故障注入未测 |
+| [DMA流水线](docs/DMA_PIPELINE.md) | 默认关闭、板上明确启用；正常路径有限实测通过，目视/故障注入未测 |\n| [LCD 生命周期](docs/LCD_LIFECYCLE.md) | 0.5.8已部署/只读启动通过；LCD开关/SD卡检测互斥未实机交互验收，未接入SD驱动 |
 | [URL 应用加载](docs/APP_URL_LOADING.md) | 已部署配置；HTTPS→RAM／状态／取消，已实际加载Tiny2D，其他边界未测 |
 | [蓝牙键盘调研](docs/BLUETOOTH_KEYBOARD.md) | 离线HID Host选型、配对/NVS阻断与最小输入接入方案；尚未实现 |
 | [Wi-Fi REPL](docs/WIFI_REPL.md) | 当前无认证TCP2323/nc协议与原owner/RAM边界 |

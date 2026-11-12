@@ -2,7 +2,21 @@
 
 硬件初检：2026-11-07 01:14 UTC。状态采用PASS / FAIL / NOT TESTED；历史未实现/旧端口只属于对应版本，不能当作当前限制或新写入许可。
 
-## 当前0.5.7 factory：DMA流水线部署与有限计时
+## 当前0.5.8 factory：LCD生命周期部署及只读启动
+
+- **PASS（实际预检/唯一写入/保护）** — 准确d0f8998c.../1199600字节/[10000,135000)/293扇区批准，新同板/8字段/actual完整0.5.7基线与旧引导通过，新marker唯一USB应用写入66.5秒；app/FFpadding/全部补集/8字段及actual完整4MiB保护匹配。无失败、USB写重试/恢复/OTA/引导/表/NVS/eFuse写入。
+- **PASS（180.120秒正常启动只读）** — factory/0.5.8/冻结ELF前缀600353088、2140ms ready/probe PASS、PSRAM六模式、两次ILI9341 ID/帧1→1351/心跳0→177、ONLINE8500ms/TCP8560ms、34条healthy。全部Flash/security检查在此次启动前；启动无UART/TCP/URL/demo/LCD/SD命令。
+- **PASS（离线证据）** — 两主机模型各185CTest、28Python/4历史mock、六配置及独立正式构建、C格式和纯状态/扩展Clang分析通过。新专用部署helper的准确范围/marker/失败不重试/错误授权、capture2 mock、正常启动防重放和纯总结模型先通过；Kondo0/cljfmt通过。上游既有UBSan对齐诊断保留。
+- **PASS（后续有限交互）** — 用户明确请求后，一个TCP连接、一次lcd-off/一次lcd-on，状态on→off→starting→on；关屏保持3.5秒后REPL可求值，RAM定义跨周期保留。最终on并发送本次测试定义清理，无UART打开/主动复位/重连/重试/Flash/security/NVS/eFuse/URL/demo/SD操作，证据另存lifecycle-test，不改部署验收。
+- **NOT TESTED** — GPIO实际电气移交/卡检测/SD插拔与读写、独立LCD目视/颜色/物理FPS/撕裂、长期启停/堆/DMA压力及硬件故障注入；SD驱动未实现，物理卡槽未独立核实。UART/TCP已释放，无后台任务，写授权耗尽。最新0.5.8完整参考为重建且actualSDK匹配，非新双读；详情 [LCD生命周期](LCD_LIFECYCLE.md)。
+
+## 后续源码：LCD帮助说明（未重刷）
+
+主`:help`列出LCD API并引导`:help-lcd`独立说明页，两页均验证小于40字符行宽、不超过19行及TCP容量；原生socketpair＋真实LispBM/生产TCP session验证帮助回复和RAM定义保留。UART/TCP owner都在原命令门控下处理，不求值或操作LCD；不新增默认启动输出。说明页属于部署后的源码变更，不是已部署冻结镜像的实机结果。
+
+- **PASS（本次源码复核）** — 两种主机模型各185项CTest、28项Python/4历史mock，六种新独立开发配置full/UART/off/probe/serial/legacy构建通过，C格式和纯帮助格式器Clang分析通过；上游已知UBSan对齐诊断仍保留。新构建仅在私有`.local/build-lcd-help-*`，不是冻结或已批准镜像，没有设备操作。
+
+## 历史0.5.7 factory：DMA流水线部署与有限计时
 
 - **PASS（写入与保护）** — 准确499b1061.../1197712字节/[10000,135000)/293扇区批准，新同板/8字段/actual完整0.5.6基线/旧引导通过，唯一USB应用写入66.5秒；app/FFpadding/全部补集/8字段/actual完整4MiB匹配。无写重试/OTA/恢复/引导/表/NVS/eFuse写入。
 - **PASS（180.138秒正常启动只读）** — factory/0.5.7/冻结ELF前缀dcdce295b、2139ms ready/probe PASS、PSRAM六模式、ILI9341帧1→1351/心跳0→177、34条healthy。Flash/security全部在启动前，启动阶段无UART/TCP表达式。

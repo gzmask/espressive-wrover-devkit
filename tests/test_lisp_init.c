@@ -45,6 +45,7 @@ bool fault_lbm_add_extension(const char *name, extension_fptr function)
     bool app_extensions = !strcmp(name, "app-run");
     return succeeds(app_extensions                  ? "app-extensions"
                     : !strcmp(name, "app-load-url") ? "load-extension"
+                    : !strcmp(name, "lcd-on")       ? "lcd-extensions"
                                                     : "print-extension") &&
            lbm_add_extension(name, function);
 }

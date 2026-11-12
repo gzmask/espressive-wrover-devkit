@@ -246,6 +246,9 @@ static void input_byte(uint8_t byte)
         } else if (!strcmp(frontend.source, ":help")) {
             show_help();
             finish();
+        } else if (!strcmp(frontend.source, ":help-lcd")) {
+            repl_help_lcd_write(output, NULL);
+            finish();
         } else if (!strcmp(frontend.source, ":clear")) {
             lcd_terminal_init(&frontend.terminal);
             finish();
@@ -335,6 +338,8 @@ static void remote_poll(void)
     remote.status = ESP_OK;
     if (!strcmp(remote.source, ":help"))
         show_help();
+    else if (!strcmp(remote.source, ":help-lcd"))
+        repl_help_lcd_write(output, NULL);
     else if (!strcmp(remote.source, ":clear")) {
         lcd_terminal_init(&frontend.terminal);
         message("LCD cleared\n");
@@ -377,6 +382,16 @@ static void report_connection(bool *reported)
     }
 }
 #endif
+static bool lcd_request(void *user, bool on)
+{
+    (void)user;
+    return board_display_request(on);
+}
+static display_lifecycle_state_t lcd_status(void *user)
+{
+    (void)user;
+    return board_display_status();
+}
 static void repl_task(void *argument)
 {
     (void)argument;
@@ -401,6 +416,9 @@ static void repl_task(void *argument)
         vTaskDelete(NULL);
         return;
     }
+    const display_lifecycle_backend_t lcd_backend = {NULL, lcd_request, lcd_status};
+    if (!lisp_runtime_lcd_attach(&lcd_backend))
+        ESP_LOGE(TAG, "LCD lifecycle unavailable");
     ESP_LOGI(TAG, "init_stage=%s align_mod8=%u selftest=PASS; ready for input", lisp_runtime_init_stage(),
              (unsigned)((uintptr_t)runtime_memory % 8));
 #if CONFIG_LISP_APP_ENABLE

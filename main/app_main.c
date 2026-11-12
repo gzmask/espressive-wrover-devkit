@@ -57,7 +57,7 @@ static firmware_health_state_t usb_health_state(void)
         .wifi_online = true,
     };
 #if CONFIG_BOARD_DISPLAY_ENABLE
-    inputs.display_healthy = board_display_is_healthy();
+    inputs.display_healthy = board_display_service_healthy();
 #endif
 #if CONFIG_LISP_REPL_ENABLE
     inputs.repl_healthy = lisp_repl_is_healthy();

@@ -1,5 +1,6 @@
 #include "lisp_runtime.h"
 #include "lisp_app_runtime.h"
+#include "lisp_lcd_runtime.h"
 #include "lisp_load_runtime.h"
 #include "lispbm.h"
 
@@ -174,6 +175,9 @@ bool lisp_runtime_reset(void)
         return false;
     init_stage = "load-extension";
     if (!lisp_load_runtime_register())
+        return false;
+    init_stage = "lcd-extensions";
+    if (!lisp_lcd_runtime_register())
         return false;
     init_stage = "ready";
     initialized = true;

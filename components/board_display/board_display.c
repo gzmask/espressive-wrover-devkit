@@ -50,6 +50,53 @@ enum {
 static const char *TAG = "board_display";
 static atomic_bool started = false;
 static atomic_uint last_frame_tick = 0;
+static portMUX_TYPE lifecycle_lock = portMUX_INITIALIZER_UNLOCKED;
+/* Zero initialized to STARTING before task creation. */
+static display_lifecycle_t lifecycle;
+static bool display_app_idle(void);
+display_lifecycle_state_t board_display_status(void)
+{
+    portENTER_CRITICAL(&lifecycle_lock);
+    display_lifecycle_state_t state = lifecycle.state;
+    portEXIT_CRITICAL(&lifecycle_lock);
+    return state;
+}
+bool board_display_request(bool on)
+{
+    bool app_idle = on || display_app_idle();
+    portENTER_CRITICAL(&lifecycle_lock);
+    bool accepted = display_lifecycle_request(&lifecycle, on, app_idle);
+    portEXIT_CRITICAL(&lifecycle_lock);
+    return accepted;
+}
+bool board_display_sd_acquire(void)
+{
+    portENTER_CRITICAL(&lifecycle_lock);
+    bool accepted = display_lifecycle_sd_acquire(&lifecycle);
+    portEXIT_CRITICAL(&lifecycle_lock);
+    return accepted;
+}
+bool board_display_sd_release(void)
+{
+    portENTER_CRITICAL(&lifecycle_lock);
+    bool accepted = display_lifecycle_sd_release(&lifecycle);
+    portEXIT_CRITICAL(&lifecycle_lock);
+    return accepted;
+}
+static void display_complete(display_lifecycle_state_t state)
+{
+    portENTER_CRITICAL(&lifecycle_lock);
+    display_lifecycle_complete(&lifecycle, state);
+    portEXIT_CRITICAL(&lifecycle_lock);
+}
+bool board_display_service_healthy(void)
+{
+    bool recent = board_display_is_healthy();
+    portENTER_CRITICAL(&lifecycle_lock);
+    bool healthy = display_lifecycle_health(&lifecycle, recent);
+    portEXIT_CRITICAL(&lifecycle_lock);
+    return healthy;
+}
 #if CONFIG_LISP_REPL_ENABLE
 static portMUX_TYPE terminal_lock = portMUX_INITIALIZER_UNLOCKED;
 static lcd_terminal_t terminal_snapshot;
@@ -73,7 +120,8 @@ esp_err_t board_display_terminal_update(const lcd_terminal_t *terminal)
 bool board_display_is_healthy(void)
 {
     unsigned last = atomic_load(&last_frame_tick);
-    return last != 0 && (TickType_t)(xTaskGetTickCount() - last) <= pdMS_TO_TICKS(3000);
+    return board_display_status() == DISPLAY_ON && last != 0 &&
+           (TickType_t)(xTaskGetTickCount() - last) <= pdMS_TO_TICKS(3000);
 }
 
 #if CONFIG_LISP_APP_ENABLE
@@ -142,11 +190,24 @@ bool board_display_app_backend(lisp_app_display_t *backend)
         (lisp_app_display_t){NULL, app_begin, app_draw, app_publish, app_activate, app_restore, app_state};
     return true;
 }
+static bool display_app_idle(void)
+{
+    if (!app_canvas_ready)
+        return true;
+    portENTER_CRITICAL(&terminal_lock);
+    bool idle = lisp_app_canvas_state(&app_canvas) == LISP_APP_DISPLAY_TERMINAL;
+    portEXIT_CRITICAL(&terminal_lock);
+    return idle;
+}
 #else
 bool board_display_app_backend(lisp_app_display_t *backend)
 {
     (void)backend;
     return false;
+}
+static bool display_app_idle(void)
+{
+    return true;
 }
 #endif
 
@@ -427,13 +488,78 @@ static esp_err_t draw_frame(display_context_t *context, const display_probe_view
 }
 #endif /* CONFIG_BOARD_DISPLAY_DMA_PIPELINE */
 
+/* SD card detect shares GPIO21 with LCD D/C. The PCB has a pull-up and
+ * card switch; require several high samples before driving LCD pins. This
+ * cannot protect against insertion after sampling: callers must not insert
+ * or remove a card while LCD is active. */
+static esp_err_t card_absent(bool *absent)
+{
+    const gpio_config_t input = {
+        .pin_bit_mask = 1ULL << LCD_DC,
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+    };
+    esp_err_t error = gpio_config(&input);
+    if (error != ESP_OK)
+        return error;
+    *absent = true;
+    for (unsigned i = 0; i < 5; i++) {
+        if (gpio_get_level(LCD_DC) == 0)
+            *absent = false;
+        vTaskDelay(pdMS_TO_TICKS(2) ? pdMS_TO_TICKS(2) : 1);
+    }
+    return ESP_OK;
+}
+static int shutdown_step(void *user, display_release_step_t step)
+{
+    display_context_t *context = user;
+    esp_err_t error;
+    switch (step) {
+    case DISPLAY_RELEASE_BACKLIGHT:
+        return gpio_set_level(LCD_BACKLIGHT, 1);
+    case DISPLAY_RELEASE_PANEL_OFF:
+        return esp_lcd_panel_disp_on_off(context->panel, false);
+    case DISPLAY_RELEASE_PANEL_DELETE:
+        error = esp_lcd_panel_del(context->panel);
+        if (error == ESP_OK)
+            context->panel = NULL;
+        return error;
+    case DISPLAY_RELEASE_IO_DELETE:
+        error = esp_lcd_panel_io_del(context->io);
+        if (error == ESP_OK)
+            context->io = NULL;
+        return error;
+    case DISPLAY_RELEASE_BUS_FREE:
+        error = spi_bus_free(LCD_HOST);
+        if (error == ESP_OK)
+            context->bus_initialized = false;
+        return error;
+    case DISPLAY_RELEASE_PINS:
+        /* Keep RESET and CS inactive and backlight off; only D/C is handed
+         * to SD detection. SPI bus teardown resets its own pins. */
+        error = gpio_set_level(LCD_CS, 1);
+        if (error != ESP_OK)
+            return error;
+        error = gpio_set_direction(LCD_CS, GPIO_MODE_OUTPUT);
+        if (error != ESP_OK)
+            return error;
+        error = gpio_set_level(LCD_RESET, 1);
+        if (error != ESP_OK)
+            return error;
+        return gpio_set_direction(LCD_DC, GPIO_MODE_INPUT);
+    default:
+        return ESP_ERR_INVALID_ARG;
+    }
+}
+
 static void release_resources(display_context_t *context)
 {
     if (context->backlight_configured) {
         (void)gpio_set_level(LCD_BACKLIGHT, 1);
     }
     if (context->dma_uncertain) {
-        ESP_LOGE(TAG, "DMA completion uncertain; resources quarantined until reset, no retry");
+        ESP_LOGE(TAG, "DMA or teardown uncertain; resources quarantined until reset, no retry");
         return;
     }
     if (context->panel != NULL) {
@@ -459,100 +585,143 @@ static void display_task(void *argument)
     display_context_t *context = argument;
     display_model_t hint = DISPLAY_UNKNOWN;
     display_model_t plan[2];
-    esp_err_t error = initialize_bus(context);
-    if (error == ESP_OK) {
-        error = identify_lcd(context, &hint);
-    }
-    size_t count = display_probe_plan(hint, plan);
-    if (error == ESP_OK && (count != 1 || plan[0] != DISPLAY_ILI9341)) {
-        ESP_LOGE(TAG, "Expected confirmed ILI9341 ID; stopping LCD, no alternate-driver trial");
-        error = ESP_ERR_NOT_SUPPORTED;
-    }
-    if (error == ESP_OK) {
-        error = begin_display(context);
-    }
-    uint32_t total_frames = 0;
-    TickType_t last_frame = xTaskGetTickCount();
+    esp_err_t error = ESP_OK;
+    bool absent = false;
     while (error == ESP_OK) {
-#if CONFIG_LISP_REPL_ENABLE
-        /* Anchor each frame independently: an SPI overrun must not accumulate
-         * periodic catch-up debt when the next frame is ready. */
-        last_frame = xTaskGetTickCount();
-        lcd_terminal_t view;
-        const uint16_t *pixels = NULL;
-#if CONFIG_LISP_APP_ENABLE
-        lisp_app_frame_t app_frame = {0};
-        bool frame_acquired = false;
-#endif
-        portENTER_CRITICAL(&terminal_lock);
-        view = terminal_snapshot;
-#if CONFIG_LISP_APP_ENABLE
-        if (app_canvas_ready) {
-            frame_acquired = lisp_app_canvas_acquire(&app_canvas, &app_frame);
-            pixels = app_frame.pixels;
+        display_lifecycle_state_t state = board_display_status();
+        if (state == DISPLAY_OFF || state == DISPLAY_SD_BLOCKED) {
+            vTaskDelay(pdMS_TO_TICKS(10) ? pdMS_TO_TICKS(10) : 1);
+            continue;
         }
-#endif
-        portEXIT_CRITICAL(&terminal_lock);
-#if CONFIG_LISP_APP_ENABLE
-        if (app_canvas_ready && !frame_acquired) {
+        if (state != DISPLAY_STARTING) {
             error = ESP_ERR_INVALID_STATE;
             break;
         }
+        error = card_absent(&absent);
+        if (error != ESP_OK)
+            break;
+        if (!absent) {
+            display_complete(DISPLAY_SD_BLOCKED);
+            ESP_LOGW(TAG, "SD card detected; LCD start blocked");
+            continue;
+        }
+        error = initialize_bus(context);
+        if (error == ESP_OK) {
+            error = identify_lcd(context, &hint);
+        }
+        size_t count = display_probe_plan(hint, plan);
+        if (error == ESP_OK && (count != 1 || plan[0] != DISPLAY_ILI9341)) {
+            ESP_LOGE(TAG, "Expected confirmed ILI9341 ID; stopping LCD, no alternate-driver trial");
+            error = ESP_ERR_NOT_SUPPORTED;
+        }
+        if (error == ESP_OK) {
+            error = begin_display(context);
+        }
+        uint32_t total_frames = 0;
+        TickType_t last_frame = xTaskGetTickCount();
+        while (error == ESP_OK) {
+            if (board_display_status() == DISPLAY_STOPPING)
+                break;
+#if CONFIG_LISP_REPL_ENABLE
+            /* Anchor each frame independently: an SPI overrun must not accumulate
+             * periodic catch-up debt when the next frame is ready. */
+            last_frame = xTaskGetTickCount();
+            lcd_terminal_t view;
+            const uint16_t *pixels = NULL;
+#if CONFIG_LISP_APP_ENABLE
+            lisp_app_frame_t app_frame = {0};
+            bool frame_acquired = false;
+#endif
+            portENTER_CRITICAL(&terminal_lock);
+            view = terminal_snapshot;
+#if CONFIG_LISP_APP_ENABLE
+            if (app_canvas_ready) {
+                frame_acquired = lisp_app_canvas_acquire(&app_canvas, &app_frame);
+                pixels = app_frame.pixels;
+            }
+#endif
+            portEXIT_CRITICAL(&terminal_lock);
+#if CONFIG_LISP_APP_ENABLE
+            if (app_canvas_ready && !frame_acquired) {
+                error = ESP_ERR_INVALID_STATE;
+                break;
+            }
 #endif
 #else
-        wifi_scan_snapshot_t wifi = wifi_scan_initial();
-        (void)wifi_service_get_snapshot(&wifi);
-        wifi_link_snapshot_t link = wifi_link_initial();
-        (void)wifi_service_get_link_snapshot(&link);
-        const display_probe_view_t view = {
-            .model = DISPLAY_ILI9341,
-            .id_match = true,
-            .uptime_s = (uint64_t)(esp_timer_get_time() / 1000000),
-            .free_heap_bytes = esp_get_free_heap_size(),
-            .firmware = esp_app_get_description()->version,
-            .wifi = wifi,
-            .link = link,
-        };
+            wifi_scan_snapshot_t wifi = wifi_scan_initial();
+            (void)wifi_service_get_snapshot(&wifi);
+            wifi_link_snapshot_t link = wifi_link_initial();
+            (void)wifi_service_get_link_snapshot(&link);
+            const display_probe_view_t view = {
+                .model = DISPLAY_ILI9341,
+                .id_match = true,
+                .uptime_s = (uint64_t)(esp_timer_get_time() / 1000000),
+                .free_heap_bytes = esp_get_free_heap_size(),
+                .firmware = esp_app_get_description()->version,
+                .wifi = wifi,
+                .link = link,
+            };
 #endif
 #if CONFIG_LISP_REPL_ENABLE
-        error = draw_frame(context, &view, pixels);
+            error = draw_frame(context, &view, pixels);
 #if CONFIG_LISP_APP_ENABLE
-        if (frame_acquired) {
-            portENTER_CRITICAL(&terminal_lock);
-            lisp_app_canvas_complete(&app_canvas, &app_frame, error == ESP_OK);
-            portEXIT_CRITICAL(&terminal_lock);
-        }
+            if (frame_acquired) {
+                portENTER_CRITICAL(&terminal_lock);
+                lisp_app_canvas_complete(&app_canvas, &app_frame, error == ESP_OK);
+                portEXIT_CRITICAL(&terminal_lock);
+            }
 #endif
 #else
-        error = draw_frame(context, &view);
+            error = draw_frame(context, &view);
 #endif
-        if (error != ESP_OK) {
+            if (error != ESP_OK) {
+                break;
+            }
+            if (total_frames == 0) {
+                error = gpio_set_level(LCD_BACKLIGHT, 0);
+            }
+            if (error == ESP_OK) {
+                atomic_store(&last_frame_tick, (unsigned)xTaskGetTickCount());
+                if (total_frames == 0)
+                    display_complete(DISPLAY_ON);
+            }
+            total_frames++;
+#if CONFIG_LISP_REPL_ENABLE
+            if (total_frames % 50 == 1) {
+#else
+            if (total_frames % 10 == 1) {
+#endif
+                ESP_LOGI(TAG, "driver=%s submitted_frames=%lu heap=%lu internal=%u stack_low=%u bytes",
+                         display_probe_model_name(DISPLAY_ILI9341), (unsigned long)total_frames,
+                         (unsigned long)esp_get_free_heap_size(),
+                         (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                         (unsigned)uxTaskGetStackHighWaterMark(NULL));
+            }
+#if CONFIG_LISP_REPL_ENABLE
+            xTaskDelayUntil(&last_frame, pdMS_TO_TICKS(100));
+#else
+            xTaskDelayUntil(&last_frame, pdMS_TO_TICKS(1000));
+#endif
+        }
+        atomic_store(&last_frame_tick, 0);
+        if (error != ESP_OK)
+            break;
+        const display_release_ops_t ops = {context, shutdown_step};
+        int shutdown_error = display_lifecycle_shutdown(&ops, context->dma_uncertain);
+        if (shutdown_error != 0) {
+            error = shutdown_error > 0 ? (esp_err_t)shutdown_error : ESP_ERR_INVALID_STATE;
+            /* Some resources may already have been removed. Do not attempt
+             * cleanup again; owner, DMA buffers and any remaining handles stay
+             * quarantined until reset. */
+            context->dma_uncertain = true;
             break;
         }
-        if (total_frames == 0) {
-            error = gpio_set_level(LCD_BACKLIGHT, 0);
-        }
-        if (error == ESP_OK)
-            atomic_store(&last_frame_tick, (unsigned)xTaskGetTickCount());
-        total_frames++;
-#if CONFIG_LISP_REPL_ENABLE
-        if (total_frames % 50 == 1) {
-#else
-        if (total_frames % 10 == 1) {
-#endif
-            ESP_LOGI(TAG, "driver=%s submitted_frames=%lu heap=%lu internal=%u stack_low=%u bytes",
-                     display_probe_model_name(DISPLAY_ILI9341), (unsigned long)total_frames,
-                     (unsigned long)esp_get_free_heap_size(),
-                     (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
-                     (unsigned)uxTaskGetStackHighWaterMark(NULL));
-        }
-#if CONFIG_LISP_REPL_ENABLE
-        xTaskDelayUntil(&last_frame, pdMS_TO_TICKS(100));
-#else
-        xTaskDelayUntil(&last_frame, pdMS_TO_TICKS(1000));
-#endif
+        context->backlight_configured = false;
+        display_complete(DISPLAY_OFF);
+        ESP_LOGI(TAG, "LCD stopped; GPIO21 available for SD ownership");
     }
     atomic_store(&last_frame_tick, 0);
+    display_complete(DISPLAY_FAULT);
     ESP_LOGE(TAG, "LCD diagnostic stopped: %s; heartbeat remains independent", esp_err_to_name(error));
     release_resources(context);
     vTaskDelete(NULL);
@@ -611,6 +780,27 @@ esp_err_t board_display_start(void)
 }
 
 #else
+bool board_display_request(bool on)
+{
+    (void)on;
+    return false;
+}
+display_lifecycle_state_t board_display_status(void)
+{
+    return DISPLAY_FAULT;
+}
+bool board_display_sd_acquire(void)
+{
+    return false;
+}
+bool board_display_sd_release(void)
+{
+    return false;
+}
+bool board_display_service_healthy(void)
+{
+    return false;
+}
 bool board_display_app_backend(lisp_app_display_t *backend)
 {
     (void)backend;

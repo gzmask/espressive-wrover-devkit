@@ -1,6 +1,16 @@
-# 单应用分区＋USB更新／恢复（当前0.5.7 factory）
+# 单应用分区＋USB更新／恢复（当前0.5.8 factory）
 
-## 当前0.5.7：DMA双条带流水线，仅应用更新
+## 当前0.5.8：LCD生命周期，仅应用更新
+
+准确批准SHA256 `d0f8998c6a35e231084a1ea979213655fb41cd7d963f6ff71124890bd0089fc2`／1199600字节／`[0x10000,0x135000)`／293扇区后，新同板/8字段/actual完整0.5.7基线与旧引导预检通过，新marker唯一USB应用写入66.5秒；app/FFpadding/全部补集/8字段/actual完整4MiB预期匹配。无写重试/恢复/OTA/引导/表/NVS/旧控制/eFuse写入。
+
+保护后一次正常RTS启动180.120秒只读通过：factory/0.5.8/冻结ELF前缀600353088、2140ms ready/probe PASS、PSRAM六模式、两次ILI9341 ID/帧1→1351/心跳0→177、ONLINE8500ms/TCP8560ms、34条healthy。该部署启动阶段没有UART/TCP表达式、URL/demo或LCD/SD交互；随后独立获请求的一个TCP连接完成一轮LCD关屏/恢复，关屏保持3.5秒后REPL可用、RAM定义跨周期保留，最终on。卡检测/插拔、SD读写和独立目视仍未验收，SD驱动未实现。
+
+最新参考 `.local/flash/lcd-lifecycle-0.5.8/post-protection/current-0.5.8-expected.bin` 由本次actual SDK匹配0.5.7参考＋准确应用/FFpadding重建并actual完整4MiB匹配，非新双读，含旧B秘密；旧0.5.7及更早全片不再代表当前应用。全部Flash/security核验在最后只读启动前；随后另记TCP RAM生命周期测试，未再次核验Flash/security。新记录先读authorization、usb-app-write-attempt、preflight/summary、app-write-summary、post-protection/summary、final-boot-summary、acceptance-summary、execution-CONTINUE/execution-final-resume；原candidate/CONTINUE/resume/PENDING和38冻结文件不改。
+
+全部写权限耗尽，UART/TCP释放，无后台监控。新写须新准确hash/范围批准、新同板/8字段/最新actual完整0.5.8基线和新marker，单次USB，不自动重试/恢复/OTA/引导/表/NVS/eFuse变化。LCD/SD交互另请；使用时必须先关屏确认off再插卡，启动/运行LCD时不要插拔SD，详见 [LCD生命周期](LCD_LIFECYCLE.md)。
+
+## 历史0.5.7：DMA双条带流水线，仅应用更新
 
 准确批准SHA256 `499b106100c441fc274305ac9b1cc912091bb31e5ec86311c58b83d3d6ae56da`／1197712字节／`[0x10000,0x135000)`／293扇区后，新同板/8字段/actual完整0.5.6基线及旧引导预检通过，新marker唯一USB应用写入66.5秒。app/FFpadding/全部补集/8字段/actual完整4MiB保护通过，无写重试/OTA/恢复或引导/表/NVS/旧控制/eFuse写入。
 
