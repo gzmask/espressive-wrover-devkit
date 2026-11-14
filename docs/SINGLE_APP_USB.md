@@ -1,6 +1,52 @@
-# 单应用分区＋USB更新／恢复（当前0.5.8 factory）
+# 单应用分区＋USB更新／恢复（0.5.12已部署）
 
-## 当前0.5.8：LCD生命周期，仅应用更新
+## 最新demo任务：三份SD加载/短运行/q退出闭环通过，LCD on/SD unmounted
+
+当前应用仍0.5.12，未新刷写。DEMO.LSP658/TINY2D.LSP1096/TINYGL.LSP2438实际SD加载/定义检查通过，单次挂载和卸载、源fat/close/error0；用户取卡后唯一LCD on、三个demo各一次约5秒运行/q退出及终端恢复通过。demo定义保留RAM，最终卡在板外/LCD on/SD unmounted/TCP释放，无源重载/SD再访问/UART/复位/Flash/security/重试。证据demo-acceptance1/{execution-final-resume.json,execution-CONTINUE-final.md,lcd-on-demo-runs1/summary.json}；原部署只读验收和冻结不改。有限逻辑验证不等于LCD目视/FPS/32KiB/峰值内存/长期或故障压力。
+
+## 已部署：0.5.12 app-load-sd保护与只读启动通过
+
+准确授权的0.5.12镜像SHA256 `febb3d42d45888035c5d2cb625d6513cb9946e36334e261f23fadb70fa3525ea`／1,257,264字节／擦写`[0x10000,0x143000)`／307扇区唯一factory USB应用写成功，完整4MiB重建预期/8安全字段保护通过；一次180.143秒只读启动健康通过。随后31字节APP.LSP有限实卡加载通过（唯一mount/load/unmount、loaded/变量512、SD无错/隔离）；目标32KiB/内存峰值及取消/故障仍未测。用户取卡后LCD已恢复on，512/42保留后清理本任务定义，最终SD unmounted/卡在板外/端口释放，不app-run；实际证据另存loader-acceptance1/sd-load-device1/summary.json，原部署acceptance-summary保持只读scope。最新验收`.local/flash/sd-app-load-0.5.12-exec1/`。写权限耗尽，任何新写需新准确批准和actual完整0.5.12基线。
+
+## 历史候选：0.5.12 app-load-sd已冻结，后获准确批准并部署
+
+`0.5.12-sd-app-load-usb`：SHA256 `febb3d42d45888035c5d2cb625d6513cb9946e36334e261f23fadb70fa3525ea`／1,257,264字节／镜像`[0x10000,0x142f30)`／实际擦写`[0x10000,0x143000)`、307扇区。候选`.local/flash/sd-app-load-0.5.12-freeze1/`，25摘要均匹配，当前无authorization/marker/preflight/设备IO。准确批准后需全新同板8字段/latest actual完整0.5.11基线/旧引导预检、新marker和单次factory USB应用写；失败不重试/恢复/OTA/表/引导/NVS/eFuse。卡须板外进行只读启动。SD文件加载功能未实机验证。
+
+## 历史设备：0.5.11 SD栈修复已部署，后被0.5.12替换
+
+用户准确批准`bfbbb25db9a2d06832663941d5277e083e260874ed0e065b97b0903306ab1338`／1,254,992字节／`[0x10000,0x143000)`后，新同板8字段/完整0.5.10基线/旧引导预检通过，唯一factory USB应用写入69.5秒；完整4MiB重建预期和8字段保护通过。一次180.174秒正常只读启动0.5.11/probe/PSRAM六模式/SD worker/ILI9341/联网健康通过，无交互或SD IO；卡在主机、UART释放。详情`.local/flash/sd-stack-0.5.11-exec1/acceptance-summary.json`。写权限已耗尽，新写须新准确hash/range批准及actual完整0.5.11基线；不重试/恢复/OTA/引导/表/NVS/eFuse。
+
+## 历史候选：0.5.11 SD栈修复已冻结，后获准确许可
+
+`0.5.11-sd-stack-diagnostics-usb`已独立冻结：SHA256 `bfbbb25db9a2d06832663941d5277e083e260874ed0e065b97b0903306ab1338`／1,254,992字节／镜像`[0x10000,0x142650)`／擦写`[0x10000,0x143000)`、307扇区。候选目录`.local/flash/sd-stack-0.5.11-freeze2/`，完整摘要通过；仍无新authorization/marker/preflight/设备IO。此前继续不构成这个未知时hash的写入许可。若用户准确批准，仍执行新同板8字段/最新actual完整0.5.10/旧引导预检与新marker唯一应用USB，失败停止；禁止重试/恢复/OTA/引导/表/NVS/eFuse。
+
+## 历史开发阶段：0.5.11 SD栈修复仅离线，后随0.5.11部署
+
+大FIL/缓冲移出任务栈、单次发布读结果、阶段/FatFs/worker栈诊断与失败句柄隔离离线实现并随0.5.11冻结候选部署。原三开发构建和测试记录仅为离线证据，目标SD app-load效果见当前0.5.12状态；新写权限均不重用。
+
+## 当前设备：0.5.10写入、保护及180秒只读启动通过
+
+准确`7ef04268894d093064c8edf5ab1fd88c31921557a60e99256cd1514fc4b98964`／1,252,512字节／[0x10000,0x142000)/306扇区获批后，新同板/8字段/实际完整0.5.9基线/旧引导通过，唯一USB应用写入69.4秒。用户明确继续只读核验后，实际完整4MiB SDK摘要与准确app/FFpadding/全部补集重建预期匹配，8字段不变；参考非新双读。先前启动采集因目录权限在串口打开前阻断，用户再次明确继续后新marker执行一次180.142秒只读启动：factory/0.5.10/ELF前缀33d209f8c、2159ms probe PASS、PSRAM六模式、ILI9341帧1→1351、心跳0→177、联网后34条healthy。无UART/TCP命令/SD IO/LCD目视，UART释放。全部Flash/security检查在正常启动前。
+
+最新私有参考`.local/flash/sd-card-0.5.10-replug1/post-protection/current-0.5.10-expected.bin`为重建并actual SDK完整匹配，非新双读、含历史秘密；此前0.5.9参考不代表当前应用。写权限耗尽；SD交互另需用户明确请求，文件持久写须另批。
+
+## 历史阻断：0.5.10写后保护通过，启动采集曾未开始（后来通过）
+
+用户明确继续后，实际完整4MiB SDK摘要匹配准确app/FFpadding及全部补集重建expected，8安全字段与预检一致；不是新双读。180秒启动采集因我创建的执行根目录0755触发隐私断言，先于Serial构造/打开和RTS退出，实际正常复位0、观察未完成；目录现改0700，原marker不改、不自动重试，等待用户明确继续。无SD操作，固件写入权限已耗尽，不能再写。详见`.local/flash/sd-card-0.5.10-replug1/execution-boot-blocked.json`。
+
+## 历史执行状态：0.5.10写后全片verify主机路径阻断（随后通过）
+
+用户准确批准factory应用`0.5.10-sd-card-usb` SHA256 `7ef04268894d093064c8edf5ab1fd88c31921557a60e99256cd1514fc4b98964`／1,252,512字节／镜像`[0x10000,0x141ca0)`／擦写`[0x10000,0x142000)`/306扇区的一次USB app写及后续180秒只读启动。已确认卡取出。重插后新同板/8字段/actual完整0.5.9/旧引导预检通过；唯一`write_flash`成功，写入1,252,512字节、esptool报告hash verified并staying in bootloader。写后4MiB verify因expected-bin传入错误执行目录路径而在串口访问前exit2。没有实际写后完整4MiB/补集/安全字段核验、保护摘要或正常启动；无重试/恢复/SD卡I/O。写授权已消费，当前运行未验证；不得再写。等待用户明确指示后仅可修正路径并做只读保护核验，再按批准范围正常启动。详见`.local/flash/sd-card-0.5.10-replug1/execution-postwrite-blocked.json`。
+
+## 最近已确认启动：0.5.9 LCD help（后续ROM预检后当前设备状态未知）
+
+准确批准SHA256 `b40ba185fd4719f3c558d33cf466413b85b42f09cb8b413cb62af4446aa4493a`／1,200,096字节／`[0x10000,0x135000)`／293扇区后，新同板/8字段/actual完整0.5.8基线与旧引导预检通过，新marker唯一USB应用写入66.6秒。应用/FFpadding/全部补集/8字段/actual完整4MiB保护通过，无写重试/恢复/OTA/引导/表/NVS/eFuse写入。
+
+一次正常RTS启动180.133秒只读通过：factory/0.5.9/冻结ELF前缀562037d04、2140ms ready/probe PASS、PSRAM六模式、ILI9341帧1→1351/心跳0→178、ONLINE8500ms/TCP8560ms、34条healthy。本次未发送UART/TCP表达式或`:help-lcd`命令，没有LCD目视/SD操作；0.5.8的一轮LCD生命周期测试为前版独立事实。
+
+最新私有参考`.local/flash/lcd-help-0.5.9-freeze2/post-protection/current-0.5.9-expected.bin`由actual SDK匹配0.5.8参考＋准确应用/FFpadding重建并actual完整4MiB匹配，非新双读，仍含旧B秘密；全部Flash/security检查在只读启动前，后续只UART采集/本地解析。冻结38文件与PENDING元数据不改，授权耗尽。后续新源码包含尚未部署SD API；0.5.9不支持SD。任何新写都须新准确hash/范围授权和新同板/8字段/actual完整0.5.9基线/旧引导预检/new marker单次USB，无重试/恢复/OTA/引导/表/NVS/eFuse变化。
+
+## 历史0.5.8：LCD生命周期应用更新（已被0.5.9替换）
 
 准确批准SHA256 `d0f8998c6a35e231084a1ea979213655fb41cd7d963f6ff71124890bd0089fc2`／1199600字节／`[0x10000,0x135000)`／293扇区后，新同板/8字段/actual完整0.5.7基线与旧引导预检通过，新marker唯一USB应用写入66.5秒；app/FFpadding/全部补集/8字段/actual完整4MiB预期匹配。无写重试/恢复/OTA/引导/表/NVS/旧控制/eFuse写入。
 

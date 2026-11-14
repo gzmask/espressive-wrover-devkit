@@ -43,9 +43,11 @@ bool fault_lbm_image_boot(void)
 bool fault_lbm_add_extension(const char *name, extension_fptr function)
 {
     bool app_extensions = !strcmp(name, "app-run");
+    bool sd_extensions = !strncmp(name, "sd-", 3);
     return succeeds(app_extensions                  ? "app-extensions"
                     : !strcmp(name, "app-load-url") ? "load-extension"
                     : !strcmp(name, "lcd-on")       ? "lcd-extensions"
+                    : sd_extensions                 ? "sd-extensions"
                                                     : "print-extension") &&
            lbm_add_extension(name, function);
 }

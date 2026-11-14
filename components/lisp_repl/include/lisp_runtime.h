@@ -28,6 +28,7 @@ bool lisp_runtime_reset(void);
 /* URL loader: asynchronous request, fixed RAM, no automatic app-run.
  * All APIs on original owner; attachment enables app-load-url. */
 bool lisp_runtime_load_attach(const lisp_app_url_backend_t *backend);
+bool lisp_runtime_load_attach_sd(const lisp_app_url_backend_t *backend);
 bool lisp_runtime_load_active(void);
 const char *lisp_runtime_load_status(void);
 /* Download cancel preserves definitions; evaluation cancel resets all RAM. */

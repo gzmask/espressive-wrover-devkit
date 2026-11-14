@@ -1,0 +1,13 @@
+menu "WROVER-KIT SD card"
+    config BOARD_SDCARD_ENABLE
+        bool "Enable opt-in FAT SD card via SDSPI"
+        depends on LISP_REPL_ENABLE && BOARD_DISPLAY_ENABLE && BOARD_WROVER_KIT_V41_CONFIRMED && SPIRAM
+        default n
+        help
+            Enable Lisp sd-mount/unmount/status/read/write/result APIs.
+            Requires LCD off before mount because GPIO21 is shared by LCD D/C
+            and SD card detect. Uses the board's SDSPI pins, which also occupy
+            JTAG GPIOs while mounted. Files are persistent on removable media;
+            explicit sd-write truncates or creates files. No auto-format,
+            directory traversal, binary data, hot-plug, or startup mount.
+endmenu

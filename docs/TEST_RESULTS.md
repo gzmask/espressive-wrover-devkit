@@ -2,7 +2,103 @@
 
 硬件初检：2026-11-07 01:14 UTC。状态采用PASS / FAIL / NOT TESTED；历史未实现/旧端口只属于对应版本，不能当作当前限制或新写入许可。
 
-## 当前0.5.8 factory：LCD生命周期部署及只读启动
+## 最新demo SD加载和短运行/q退出闭环：三份通过
+
+- **PASS（实卡源码）** — 一个新TCP会话唯一mount、DEMO.LSP658/TINY2D.LSP1096/TINYGL.LSP2438各一次app-load-sd全loaded/descriptor3；动画phase0、TinyGL表32/顶点8/边12，实传字节与各源大小一致、fat/close/error0、quarantine0、worker trace栈余量3860字节。唯一unmount后定义和会话42保留，SD unmounted/LCD off。无app-run/普通SD读写/UART/复位/Flash/security/重试重连。新helper三源/字节/定义/pending/失败第二不第三/错descriptor/EOF/卡-LCD门模型、lint/格式通过。实际证据demo-acceptance1/sd-demo-loads1/summary.json。
+- **PASS（逻辑短运行/退出）** — 用户取卡后一个新TCP：唯一lcd-on（3查询/保持3.5秒），demo/tiny2d/tinygl各一次app-run、约5秒持应用、一次:key q退出、终端恢复查询3/3/2，各descriptor3/RAM42/SD unmounted；tiny2d/tinygl phase21/4为模32数据不换算FPS。最后只清理会话测试定义，三个demo保留RAM。最终LCD on/SD unmounted/卡已取出/TCP释放/无后台，无SD访问/重载/UART/复位/Flash/security/重试。证据demo-acceptance1/lcd-on-demo-runs1/summary.json，模型/准入/失败不重试及格式lint通过。
+- **NOT TESTED** — 加载最大2438字节非32KiB压力/heap-PSRAM峰值、取消/迟到/故障/长期稳定、LCD独立目视/颜色/物理FPS；不将模32相位对比当性能。
+
+## 已完成：0.5.12部署/只读启动及31字节app-load-sd闭环
+
+- **PASS（部署）** — 新同板/8字段/实际完整0.5.11参考/旧引导预检，准确app唯一USB写69.6秒/data hash verified；写后完整4MiB重建模型和8字段保护通过。
+- **PASS（只读启动）** — 一次180.143秒正常RTS：0.5.12/probe/PSRAM六模式/SD worker启动/ILI9341/联网健康通过。启动未执行Lisp/SD命令，无启动后Flash/security读。
+- **PASS（离线loader）** — 两模型各214项，真实LispBM+模拟后端32KiB读/复制/取消/迟到worker/错误/嵌套拒绝；真实IDF FatFs仅堆内存FAT32盘测试32KiB与超限边界。普通`sd-read`仍240字节。28 Python/4历史mock、三配置构建、格式/静态分析通过；上游UBSan对齐诊断保留。
+- **PASS（有限实卡loader）** — 电脑fresh核验同一卡FAT32/MBR/UUID后独占创建31字节APP.LSP、读回并弹出；LCD off后用户插板，一个新TCP会话唯一mount/app-load-sd/unmount，loaded/变量-1→512，卸载后512和会话42仍在。源诊断error/fat/close=0、31/32769字节、quarantine=0。三次操作trace报告worker stack_min=3860字节（任务6144），为SDK生命周期水位观测，非完整调用链/每操作独立峰值保证。无普通SD读写/format/app-run/UART/复位/Flash/security/重试/重连；此阶段SD unmounted/LCD off，随后用户取卡并恢复LCD见下一项。证据loader-acceptance1/sd-load-device1/summary.json。
+- **PASS（取卡后LCD恢复）** — 用户确认取卡，一个独立TCP会话唯一lcd-on、off→starting→on（3查询），保持3.5秒仍on/SD unmounted，变量512和会话42保留后只清理本任务两个定义，无app-run/SD访问/复位/Flash/security；TCP释放、无后台。初次主机helper整数0/false?类型门错误先于目录/marker/TCP阻断，纠正并补准入及会话模型后才首次真实恢复，非设备重试。证据loader-acceptance1/lcd-restore-after-card-removal/summary.json。
+- **NOT TESTED（硬件）** — 32KiB目标内存/PSRAM/内部heap峰值/最大连续块、取消/迟到worker/掉卡故障、长期稳定、LCD独立目视。无剩余固件写权限。
+
+## 0.5.12主帮助SD摘要已部署
+
+`repl_help_write`在SD启用时显示`(sd-mount) (sd-read ...)`和`(sd-write ...) (sd-result)`及`:help-sd`入口，SD关闭时无SD函数；在全部配置组合下满足19行/40列和TCP回复容量。真实主机LispBM/socket测试验证`:help`含SD摘要；两模型各210项CTest、28 Python/4历史mock及full ESP-IDF开发构建通过，格式通过。既有上游UBSan对齐诊断未消除。首次双行超19行被主机测试拒绝，缩减其他帮助行后通过；该帮助版本已随准确授权的0.5.12候选部署，见上节启动验收范围。
+
+## 历史0.5.11设备：部署和FAT32实卡读写通过，后被0.5.12替换
+
+- **PASS（预检/写入）** — 新同板、rev1/40MHz/4MB、8字段、完整0.5.10基线/旧引导通过；唯一factory USB准确app写69.5秒/data hash verified，范围`[0x10000,0x143000)`。
+- **PASS（保护）** — 准确app/FFpadding/所有补集与实际完整4MiB重建预期、写后8字段不变。参考非新双读，所有Flash/security读取发生在后续启动前。
+- **PASS（只读启动）** — 卡不在板上，一次180.174秒正常RTS，0.5.11 ready/probe/PSRAM六模式/SD worker启动/ILI9341/联网通过；帧1→1351、心跳0→177、ONLINE8511ms/TCP8581ms、34 healthy，联网前一次unhealthy。无UART/TCP/SD命令、目视或启动后Flash/security读取。
+- **PASS（FAT32实卡）** — 用户插卡、LCD off后，一个TCP会话挂载2次、只写新`S511D001.TXT`一次、读回2次精确匹配57字节payload、卸载2次，最终unmounted；无format/重试/重连/UART/复位/Flash/security。用户取卡后LCD恢复on、RAM定义清除，端口释放。
+- **NOT TESTED** — 断电/PC独立读回、不同卡/写保护/故障注入、长期压力、worker实际low-water、LCD目视。短软件卸载重挂不证明旧超时唯一根因或全部实卡情形。写权限耗尽。
+
+## 历史0.5.11冻结候选：离线完整，后获准确批准
+
+- **候选** — `0.5.11-sd-stack-diagnostics-usb`／1,254,992字节／SHA256 `bfbbb25db9a2d06832663941d5277e083e260874ed0e065b97b0903306ab1338`；镜像`[0x10000,0x142650)`，擦写`[0x10000,0x143000)`／307扇区。
+- **冻结** — `.local/flash/sd-stack-0.5.11-freeze2/`的205源码快照与新candidate2构建一致，32项摘要、完整4MiB离线模型/补集、表/旧引导/当前0.5.10参考和SDK头/footer/ELF审计通过。无设备IO/批准/marker。
+- **边界** — 此处不是目标SD/LCD/堆/栈或写卡实测；用户须准确批准新hash/范围后才能开始新预检和一次USB应用写入。初次freeze1纯主机日志格式假设在创建候选前阻断，修正后从新快照/独立构建完成，非Flash重试。
+
+## 最新离线修复：SD栈与诊断（未部署，不是新设备验收）
+
+- **PASS（编译栈门禁）** — 固定Xtensa构建worker48、read/write包装32/48、文件核心各64字节；大FIL/路径/请求改worker独占BSS，栈仍6144。单函数768字节门禁和.su审计不替代完整SDK调用链/硬件余量实测。
+- **PASS（主机）** — 默认及word32各210项CTest；新增真实IDF FatFs/FAT32堆内存盘20轮写/卸载重挂/读回、空文件/截断/缺文件/同步错误；真实4KiB FIL布局核心错误注入、边界/短写/首错与close分开、句柄隔离、不重试；新诊断Lisp/帮助/故障门控通过。RTOS锁/块设备为替身，不是真卡证据。
+- **PASS（负例/工具）** — 私有自动FIL/同步失败close/覆盖首错破坏版本均被门禁或断言拒绝；28Python、4历史mock、C格式/核心诊断Clang分析通过。上游旧UBSan对齐诊断仍可见，非sanitizer-clean。
+- **PASS（开发构建）** — .local/build-sd-stack-{full,uart,disabled}三配置；full1254992字节/余54%，禁用配置未链接worker/workspace/API。新诊断/栈/隔离效果在目标上NOT TESTED。
+- **边界** — 无设备/卡IO、UART/TCP/复位/写Flash；未冻结新候选或自动commit/push。板上仍上次0.5.10记录，原写入超时根因尚无硬件证据确认。
+
+## 最新主机复核：测试文件不存在，LCD恢复通过
+
+- **OBSERVED（主机只读）** — fresh身份/容量/卷UUID匹配同一FAT32卡，指定64字节测试文件不存在；不排除部分扇区写入。无补写/格式化/修复。
+- **INCOMPLETE（文件系统一致性）** — 一次diskutil verifyVolume在180秒内无输出并超时，未得通过结果；无遗留diskutil/fsck进程，未修复/重试。
+- **PASS（LCD恢复）** — 卡在主机后，一个TCP连接、一次lcd-on，sd-blocked→starting→on并保持3.5秒；SD unmounted、RAM42、清理自有测试定义。无UART/复位/SD存储/固件操作。
+- **RISK（离线）** — 候选write_file4688/read_file4928+worker592字节栈帧对比6144字节worker，嵌套调用预算仅864/624字节，FIL私有缓存4096；未捕捉原崩溃日志，不能称实际栈溢出已证实。SD完整读写/卸载重挂仍未验收。
+
+## 历史FAT32实卡：挂载通过，唯一写请求回复超时
+
+- **PASS（实际mount）** — 新会话一次sd-mount状态mounting→mounted，last-error=0；LCD当时sd-blocked。
+- **INCOMPLETE（写入结果）** — 唯一95字节sd-write命令发送后回复超时，写ACK未收到；实际文件创建/落盘未知，未重发、未read/显式unmount/第二次mount。
+- **OBSERVED（只读对账）** — 新有界连接仅sd-status→unmounted，未作其他存储操作，TCP均释放。不能据此证明clean flush、内容或具体重启根因；未开UART/主动复位/重刷/格式化。待电脑读卡器只读核对指定文件。证据`card-acceptance/fat32-result.json`。
+
+## 历史SD介质准备：明确授权后一次FAT32格式化通过
+
+- **PASS（主机实际操作）** — 用户授权清空并指明64GB Untitled；Mac内置读卡器可移除SDXC卡实际63.6GB，唯一设备/容量/CID/卷UUID确认后一次格式化为MBR单分区FAT32/WROVERSD/32KiB簇，写后同卡和格式验证通过并安全弹出。普通快速格式化，不称安全覆写。
+- **PASS（helper模型）** — 错设备/容量/序列/UUID/非可移除及系统介质拒绝、marker-before-single-format、失败不重试，kondo/cljfmt通过。
+- **NOT TESTED（新FAT32实板）** — 等待用户插回板卡；没有ESP32/UART/TCP/固件/其他磁盘格式化。证据`.local/sd-format-64gb-untitled/result.json`。
+
+## 历史实卡验收：0.5.10首次exFAT挂载失败
+
+- **FAIL（实际SD挂载）** — 用户确认插卡/允许测试文件后，唯一`sd-mount`接受t、mounting→unmounted、`sd-last-error=-1i32`（ESP_FAIL）。未发送sd-read/sd-write，未创建测试文件，无format/重试/UART/复位/Flash/security访问。TCP释放，LCD最后观测sd-blocked，待取卡后恢复。
+- **PASS（host）** — 修正错误的off-only准入，接受源码允许的off/sd-blocked、拒绝on，错误/pending模型、kondo/cljfmt及真实主机LispBM精确文本/eq(sd-result)表达式通过；服务fake非硬件，上游已知UBSan对齐诊断保留。原host准入失败发生于任何SD操作前，证据保留。
+- **NOT DETERMINED** — 失败阶段/FRESULT未暴露，不能区分文件系统格式、卡初始化或SPI问题。SDK无exFAT不证明此卡就是exFAT。实卡文件读写/卸载重挂仍未验收。证据`card-acceptance/result.json`，部署启动验收保持原scope。
+
+## 部署验收：0.5.10完整保护及只读启动通过
+
+- **PASS（写后保护）** — 一次USB app写入69.4秒后，实际完整4MiB SDK摘要匹配重建expected，8安全字段不变；非新双读。
+- **PASS（180.142秒只读启动）** — 先前主机权限阻断未开串口/未复位；用户明确继续后新marker、一次正常RTS启动：factory/0.5.10/ELF前缀33d209f8c、2159ms ready/probe PASS、PSRAM六模式、ILI9341帧1→1351、心跳0→177、ONLINE8539ms/TCP8579ms、34条healthy。无UART/TCP表达式、SD I/O或LCD目视，UART释放。保护检查均在启动前。
+- **NOT TESTED** — 实卡检测/电气/挂载/读写、LCD独立目视与长期压力；写权限耗尽。证据`.local/flash/sd-card-0.5.10-replug1/readonly-boot-continuation/acceptance-summary.json`。
+
+## 历史阻断：0.5.10写后完整保护通过，启动采集曾阻断（后来通过）
+
+- **PASS（实际保护）** — 用户明确继续后，同板实际4 MiB SDK digest匹配准确应用＋FFpadding＋全部补集重建预期，8安全字段未变化；参考非新双读。
+- **BLOCKED（180秒只读启动）** — 我创建的执行根为0755，capture在Serial构造/打开及RTS前因权限断言exit1；无log，实际复位0、180秒观察未进行。目录已改0700，marker保留；不自动重试，等待用户明确继续。无SD卡I/O，固件写权限耗尽。
+
+## 历史设备执行：0.5.10写后保护曾因主机路径阻断（随后通过）
+
+用户准确批准`0.5.10-sd-card-usb` SHA256 `7ef04268894d093064c8edf5ab1fd88c31921557a60e99256cd1514fc4b98964`／1,252,512字节／镜像`[0x10000,0x141ca0)`／擦写`[0x10000,0x142000)`/306扇区的一次factory USB应用写入及一次180秒只读启动，并确认卡取出。初次预检后写前verify连接失败、写入0；用户重插后新独立预检同板/ESP32-D0WD rev1/40MHz/4MB、8个安全字段、actual完整0.5.9 4MiB基线和冻结旧引导通过。
+
+随后唯一`write_flash`成功，写入1,252,512字节并报告hash verified、staying in bootloader。写后全片verify尝试因helper将期待镜像错指为replug执行目录中不存在的`offline-after-app-model.bin`，esptool参数解析exit2、未访问串口/设备。故**写后实际完整4MiB/补集/安全字段保护未核验；post-protection与正常启动均0；SD卡I/O 0**。没有重试/恢复/复位/探测。固件写权限已消费；最后写操作报告ROM hold，当前运行未验证。后续需用户明确同意后仅做修正helper下的只读保护核验，不能再写。记录见`.local/flash/sd-card-0.5.10-replug1/execution-postwrite-blocked.json`。
+
+## 最新源码：opt-in SD/FatFs API离线实现（未部署/无实卡验收）
+
+- **PASS（主机）** — 两种LispBM模型各191项CTest，包括安全filename/text验证、LCD-off/SD lease政策、异步状态机与Lisp扩展结果；28 Python/4历史mock通过。host SD service fake非硬件仿真。C格式及纯logic Clang分析通过；已有上游UBSan alignment诊断保留。
+- **PASS（独立build）** — ESP-IDF v5.5.6 SD-enable full+LCD DMA/perf build、SD-enable UART/no-WiFi build、SD-disable full build均通过；所有都是私有未部署开发产物，SD-enable app bin `0x131ca0`。首版POSIX VFS SD挂载因IRAM超限约740字节被离线阻断；改native FatFs逻辑盘API（不挂POSIX VFS/不拉入时间转换路径）后链接通过。不是硬件失败/重试。
+- **NOT TESTED** — real SD slot/CD polarity/GPIO、电压/电流、strap/JTAG contention，卡兼容性、真实mount/unmount/read/write/拔卡/断电/错误恢复与长期DMA/Wi-Fi共存。源树有opt-in Lisp API；镜像应用虽一次写入成功，写后完整保护/启动未完成，板上SD功能不能视为部署验收。当前启动状态未验证。见 [SD卡 API](SD_CARD.md) 与 [LCD生命周期](LCD_LIFECYCLE.md)。
+
+## 最近部署版本（SD候选之前）：0.5.9 LCD help factory
+
+- **PASS（实际预检/唯一写入/保护）** — 准确批准b40ba185.../1200096字节/[10000,135000)/293扇区；新同板/8字段/actual完整0.5.8基线与旧引导通过，唯一USB应用写入66.6秒；app/FFpadding/全部补集/8字段/actual完整4MiB保护匹配。无写重试/恢复/OTA/引导/表/NVS/eFuse写入。
+- **PASS（180.133秒正常启动只读）** — factory/0.5.9/冻结ELF前缀562037d04、2140ms probe PASS、PSRAM六模式、ILI9341帧1→1351/心跳0→178、ONLINE8500ms/TCP8560ms、34条healthy。全部Flash/security在启动前核验；之后仅UART读取和本地解析。
+- **NOT TESTED** — 启动阶段未发送`:help-lcd`或LCD/SD命令，没有独立目视；新帮助页的板上交互/可读性仍未实际验收。SD驱动/卡检测/插拔/读写、颜色/FPS/撕裂、DMA故障注入和长期压力未验收。0.5.8的单轮开关屏测试是上一版本证据，不外推为0.5.9回归。
+- 最新`.local/flash/lcd-help-0.5.9-freeze2/post-protection/current-0.5.9-expected.bin`由actual SDK匹配0.5.8参考＋准确app/FFpadding重建并actual完整4MiB匹配，非新双读。UART释放，无后台监控，写授权耗尽。
+
+## 历史0.5.8 factory：LCD生命周期部署及单轮交互
 
 - **PASS（实际预检/唯一写入/保护）** — 准确d0f8998c.../1199600字节/[10000,135000)/293扇区批准，新同板/8字段/actual完整0.5.7基线与旧引导通过，新marker唯一USB应用写入66.5秒；app/FFpadding/全部补集/8字段及actual完整4MiB保护匹配。无失败、USB写重试/恢复/OTA/引导/表/NVS/eFuse写入。
 - **PASS（180.120秒正常启动只读）** — factory/0.5.8/冻结ELF前缀600353088、2140ms ready/probe PASS、PSRAM六模式、两次ILI9341 ID/帧1→1351/心跳0→177、ONLINE8500ms/TCP8560ms、34条healthy。全部Flash/security检查在此次启动前；启动无UART/TCP/URL/demo/LCD/SD命令。
@@ -10,7 +106,14 @@
 - **PASS（后续有限交互）** — 用户明确请求后，一个TCP连接、一次lcd-off/一次lcd-on，状态on→off→starting→on；关屏保持3.5秒后REPL可求值，RAM定义跨周期保留。最终on并发送本次测试定义清理，无UART打开/主动复位/重连/重试/Flash/security/NVS/eFuse/URL/demo/SD操作，证据另存lifecycle-test，不改部署验收。
 - **NOT TESTED** — GPIO实际电气移交/卡检测/SD插拔与读写、独立LCD目视/颜色/物理FPS/撕裂、长期启停/堆/DMA压力及硬件故障注入；SD驱动未实现，物理卡槽未独立核实。UART/TCP已释放，无后台任务，写授权耗尽。最新0.5.8完整参考为重建且actualSDK匹配，非新双读；详情 [LCD生命周期](LCD_LIFECYCLE.md)。
 
-## 后续源码：LCD帮助说明（未重刷）
+## 历史0.5.9 LCD help候选准备（随后已批准并部署）
+
+- **PASS（离线）** — 从已推送fcf5c9e独立构建，1,200,096字节，SHA256 `b40ba185fd4719f3c558d33cf466413b85b42f09cb8b413cb62af4446aa4493a`，擦写[10000,135000)/293扇区，与0.5.8相同。镜像/ELF/footer/config/符号/帮助文本、当前本地0.5.8表/旧引导/参考/FFpadding/补集模型通过；181源码归档与current一致，冻结38项摘要/权限和归档审计通过。
+- **PASS（测试）** — 两模型各185CTest、28Python/4历史mock、六配置及候选构建，C格式、Kondo/cljfmt、纯逻辑Clang分析。上游UBSan对齐诊断保留。
+- **PASS（后续部署）** — 用户准确批准后通过新同板/8字段/0.5.8实际完整基线/旧引导预检，唯一USB应用写入及保护和180.133秒只读启动均通过，详见当前0.5.9节。
+- **NOT TESTED（当时构建阶段）** — 构建/冻结过程中没有设备操作、复位或刷写。两次独立helper/归档准备中的首次纯主机复制日志路径失败保留在本地审计；没有设备IO或已授权写尝试。
+
+## 已提交源码：LCD帮助说明（未重刷）
 
 主`:help`列出LCD API并引导`:help-lcd`独立说明页，两页均验证小于40字符行宽、不超过19行及TCP容量；原生socketpair＋真实LispBM/生产TCP session验证帮助回复和RAM定义保留。UART/TCP owner都在原命令门控下处理，不求值或操作LCD；不新增默认启动输出。说明页属于部署后的源码变更，不是已部署冻结镜像的实机结果。
 

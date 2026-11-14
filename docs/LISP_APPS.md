@@ -1,4 +1,10 @@
-# LispBM 前台应用层（当前0.5.7 factory，物理LCD FPS未测）
+# LispBM 前台应用层（当前0.5.12 factory，物理LCD FPS未测）
+
+## 当前：三个原demo的SD加载/短运行/q退出通过
+
+0.5.12提供`app-load-sd`，与URL loader共享最多32KiB源码和加载控制状态。`DEMO.LSP`（658字节）、`TINY2D.LSP`（1096字节）、`TINYGL.LSP`（2438字节）已实卡加载并检查定义；成功卸载、用户取卡并恢复LCD后，各显式运行约5秒、一次`:key q`退出并恢复终端。定义保留RAM，最后无应用运行、LCD on/SD unmounted、卡在板外、TCP释放。不是物理LCD目视/FPS、32KiB内存压力或长期稳定性证据。
+
+SD流程：`lcd-off`并确认`off` → 插卡/`sd-mount`并确认`mounted` → `(app-load-sd "TINY2D.LSP")`/`:load-status`等`loaded` → `sd-unmount`等`unmounted` → 取卡/`lcd-on`等`on` → `(app-run tiny2d)`。文件加载只求值，不自动运行；普通`sd-read`仍240字节。互斥租约不会防止物理热插拔，不能带卡复位；详见[SD卡API](SD_CARD.md)及[LCD生命周期](LCD_LIFECYCLE.md)。以下旧版本计时/部署仅为各自历史证据，不当当前性能保证。
 
 ## 已部署：LCD双条带DMA流水线
 
@@ -68,7 +74,7 @@
 UART / TCP → Lisp owner → 终端快照或应用画布 → LCD owner → 内部DMA条带 → ILI9341
 ```
 
-不加入窗口管理器、LVGL、后台Lisp任务、文件加载器、SD、持久化、GPIO、BT或DSP。不是恶意Lisp安全沙箱，也不隔离应用对共享全局定义的修改。TCP2323仍无认证，只限可信LAN。
+应用层本身不加入窗口管理器、LVGL、后台Lisp任务、安装/持久化、GPIO、BT或DSP。后来URL及SD源码加载由独立服务提供，SD文件操作必须显式启用并遵守LCD租约；不改变应用定义驻留RAM/复位清除的规则。不是恶意Lisp安全沙箱，也不隔离应用对共享全局定义的修改。TCP2323仍无认证，只限可信LAN。
 
 ## 应用接口
 
@@ -146,7 +152,7 @@ LCD沿用固定ILI9341、方向和10MHz SPI；板上0.5.7应用/LCD目标周期�
 
 [`examples/lisp/tiny2d.lisp`](../examples/lisp/tiny2d.lisp)是配套的最低复杂度动画基线：每帧只调用`gfx-clear`、一个`gfx-rect`和两段固定文字，没有`map`、顶点列表或3D投影。它与TinyGL使用相同的应用回调、双画布和完整320×240 LCD提交路径；`(app-run tiny2d)`启动，控制与TinyGL相同。若它在板上也约1 FPS，瓶颈不是TinyGL几何运算；若它明显更快，再优先分析TinyGL的LispBM分配/GC。该比较仍不能单独量化LCD、DMA和回调时间，需固件遥测才可归因。
 
-可用现有REPL续行输入加载`demo`定义，完成后单独提交`(app-run demo)`；普通输入仍限1023字节，不要粘贴多条独立提交期待自动排队。`tinygl.lisp`和1096字节的`tiny2d.lisp`都超过此限制，需通过已启用的最多32KiB HTTPS URL→RAM loader加载，见上节；没有`:load`本地文件命令或电脑端文件上传器，不读写Flash数据分区。新增主机集成测试实际经该loader加载TinyGL/2D源码，逐帧和独立整数投影预期比对首帧/32相位、暂停、TCP/UART停止、八次重启式启停及256帧压力；这不是设备、LCD目视或网络HTTPS验收。
+可用现有REPL续行输入加载`demo`定义，完成后单独提交`(app-run demo)`；普通输入仍限1023字节，不要粘贴多条独立提交期待自动排队。`tinygl.lisp`和1096字节的`tiny2d.lisp`都超过此限制，可通过最多32KiB HTTPS URL→RAM或0.5.12的`app-load-sd`加载（卡上建议8.3名称`TINYGL.LSP`/`TINY2D.LSP`）；没有通用`:load`本地文件命令或电脑端文件上传器，不读写Flash数据分区。新增主机集成测试实际经该loader加载TinyGL/2D源码，逐帧和独立整数投影预期比对首帧/32相位、暂停、TCP/UART停止、八次重启式启停及256帧压力；这不是设备、LCD目视或网络HTTPS验收。
 
 ## 离线构建与测试
 

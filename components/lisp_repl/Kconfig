@@ -5,8 +5,10 @@ menu "LispBM REPL"
         default n
         help
             Experimental, opt-in. Uses UART0/115200 and the confirmed LCD.
-            Lisp state and the upstream image are RAM-only. No NVS, filesystem,
-            Bluetooth, DSP or arbitrary GPIO extensions. LCD lifecycle controls\n            do not mount SD cards. Ctrl-C resets the Lisp environment.
+            Lisp state and the upstream image are RAM-only. No NVS writes;
+            removable SD access is a separate opt-in service. No Bluetooth, DSP
+            or arbitrary GPIO extensions. LCD lifecycle controls do not mount
+            SD cards. Ctrl-C resets the Lisp environment.
             Requires a separately installed pinned LispBM checkout (GPLv3+).
     config LISP_APP_ENABLE
         bool "Enable one foreground Lisp application with a full-screen canvas"
@@ -16,7 +18,7 @@ menu "LispBM REPL"
             Opt-in, RAM-only callbacks and two fixed PSRAM RGB565 canvases
             (300 KiB). Original Lisp and LCD tasks retain sole ownership.
             UART Ctrl-C stops the app; TCP :stop and :key X remain available.
-            No filesystem, persistent loader, GPIO, Bluetooth or DSP.
+            No application file API, persistent loader, GPIO, Bluetooth or DSP.
     config LISP_PERF_TRACE
         bool "Enable opt-in RAM app and LCD timing diagnostics"
         depends on LISP_APP_ENABLE

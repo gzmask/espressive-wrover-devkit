@@ -2,14 +2,87 @@
 
 ESP-WROVER-KIT v4.1 / 经典 ESP32 的 ESP-IDF 固件：FreeRTOS、PSRAM、ILI9341、自动 Wi-Fi、USB固件更新与 RAM-only LispBM REPL。
 
-## 当前设备：0.5.8 LCD 生命周期（factory已部署）
+## 最新demo验收：三份SD源码加载、短运行和q退出闭环通过
 
-准确批准 SHA256 `d0f8998c6a35e231084a1ea979213655fb41cd7d963f6ff71124890bd0089fc2`／1,199,600字节／`[0x10000,0x135000)`／293扇区后，新同板/8字段/actual完整0.5.7基线与旧引导预检通过，新marker唯一USB应用写入66.5秒。app/FFpadding/全部补集/8字段/actual完整4MiB保护匹配，无写重试/恢复/OTA或引导/表/NVS/eFuse写入。随后一次180.120秒正常只读启动通过：factory/冻结ELF前缀600353088、2140ms ready/probe PASS、PSRAM六模式、ILI9341帧1→1351/心跳0→177、联网后34条healthy。
+用户允许既有demo的SD加载和运行验收后，同一卡fresh核验并独占写入`DEMO.LSP`（658）、`TINY2D.LSP`（1096）、`TINYGL.LSP`（2438字节），精确读回并安全弹出。用户插卡后，一个新TCP会话唯一挂载、三份各一次app-load-sd全部loaded/定义通过（实际658/1096/2438字节、close/fat/error=0），成功卸载。用户取卡后LCD已恢复，demo/tiny2d/tinygl各运行约5秒并一次q退出，终端及定义保留检查通过；最终LCD on/SD unmounted、卡在板外、端口释放。三个定义保留RAM，可直接app-run；物理LCD目视/FPS、32KiB及长期压力仍未测，不format/固件写。
 
-已部署 `(lcd-off)`、`(lcd-on)`、`(lcd-status)`；随后按明确请求通过一个TCP连接实际完成一轮关屏/恢复：`on→off→starting→on`，关屏保持3.5秒后REPL仍可求值，RAM测试定义跨周期保留。未插拔/读写SD或独立目视，SD驱动尚未实现。必须先关屏并确认 `off` 才能插卡，停止SD、取卡后才恢复LCD；卡检测只是辅助，不支持运行中插拔。详见 [LCD 生命周期](docs/LCD_LIFECYCLE.md)。
+## 已部署：0.5.12 `app-load-sd`，保护与只读启动通过
+
+准确批准后唯一factory USB写入0.5.12候选`febb3d42d45888035c5d2cb625d6513cb9946e36334e261f23fadb70fa3525ea`（1,257,264字节；擦写`[0x10000,0x143000)`/307扇区）。完整4MiB保护/安全字段、180.143秒只读启动通过。FAT32实卡挂载/文件读写已在0.5.11有限验收；0.5.12已完成同一卡31字节`APP.LSP`有限实卡加载：唯一挂载/加载/卸载成功，状态loaded、变量512，诊断无错误/隔离，worker trace栈余量3860字节。用户取卡后LCD已恢复on并保持3.5秒，加载变量512保留后清理本任务定义；最终SD unmounted、卡在板外、端口释放，无app-run。31字节闭环完成；32KiB及目标内存峰值仍未测。详情见[SD卡文档](docs/SD_CARD.md)。
+
+## 历史冻结：0.5.12 `app-load-sd`已准确授权并部署
+
+`.local/flash/sd-app-load-0.5.12-freeze1/`保留PENDING作为冻结时历史状态，SHA256SUMS有效；用户随后对精确hash/范围回复consent，并完成唯一USB应用写入及保护/只读启动验收。镜像1,257,264字节，SHA256 `febb3d42d45888035c5d2cb625d6513cb9946e36334e261f23fadb70fa3525ea`；擦写`[0x10000,0x143000)`／307扇区。普通`sd-read`仍240字节。冻结后六篇文档与一个主机测试文件更新；固件实现源码仍匹配冻结hash，候选来自构建时未提交工作树，而不是后续提交重建。源归档与冻结snapshot内部一致，私有漂移审计单独保留。
+
+## `app-load-sd`当前状态：已部署，31字节实卡加载通过
+
+SD worker分块读取最多32 KiB源码到PSRAM，由原Lisp owner加载；`sd-read`仍限240字节。`(app-load-sd "APP.LSP")`配合`:load-status`／`:load-cancel`，完成后先卸载取卡、恢复LCD，再显式`app-run`。两主机模型各214项及三配置开发构建通过；固件已准确批准并部署，已通过31字节实卡读取/关闭/复制/求值；目标32KiB、内存压力、取消/故障仍未测。见[SD卡API](docs/SD_CARD.md)。
+
+## SD帮助：主`:help`摘要已随0.5.12部署
+
+SD启用时主`:help`直接列出`sd-mount/read/write/result`及`:help-sd`入口，保持LCD行数限制。主帮助本身尚未在板上交互检查。
+
+## 历史设备：0.5.11 SD栈修复已部署，随后被0.5.12覆盖
+
+已按准确批准唯一USB写入`0.5.11-sd-stack-diagnostics-usb`，完整4MiB重建预期与8安全字段保护通过。随后180.174秒只读启动通过，并完成一次FAT32实卡会话：挂载2次、仅写新`S511D001.TXT`一次、读回2次精确匹配、卸载2次；取卡后LCD已恢复on。没有格式化、重试、UART/复位或启动后Flash读取。短软件卸载重挂不代表断电、长期压力、不同卡或worker实际low-water；写权限已耗尽。详见[SD卡API](docs/SD_CARD.md)。
+
+## 历史候选：0.5.11 SD栈修复已冻结，后获准确批准
+
+候选`0.5.11-sd-stack-diagnostics-usb`：**1,254,992字节**，SHA256 **`bfbbb25db9a2d06832663941d5277e083e260874ed0e065b97b0903306ab1338`**；镜像`[0x10000,0x142650)`，实际擦写`[0x10000,0x143000)`／307扇区。仅一次factory USB应用，不写表/引导/NVS/eFuse或范围外数据；单槽无板上回退。冻结目录`.local/flash/sd-stack-0.5.11-freeze2/`保留构建时PENDING历史状态；随后已另获准确批准并部署，实际验收见上文。
+
+## 历史源码：SD栈风险离线修复，随后随0.5.11部署
+
+已将大FIL缓存/路径/请求移出SD任务栈，新增`(sd-diagnostics)`及阶段/FatFs/栈余量日志，并修复读结果重复发布窗口。Xtensa worker栈帧592→48字节，读写核心各64字节；不代表完整SDK调用链已实板验证。两主机模型各210项、28Python/4历史mock、真实FatFs堆内存盘及三配置构建通过；旧上游UBSan对齐诊断保留。详见[SD卡API](docs/SD_CARD.md)。该离线阶段无设备访问；之后代码纳入0.5.11并部署。
+
+## 当前设备：0.5.10 SD API已部署，文件写入未验收，LCD已恢复
+
+FAT32挂载曾通过，但唯一写请求回复超时；同一卡返回电脑后未找到指定测试文件。只读文件系统验证超时，未补写/修复/再格式化；SD读写验收不通过。LCD已通过一次TCP恢复on，SD unmounted，卡仍在电脑；不要在LCD on时插卡。离线发现6KiB worker中大FIL自动对象导致明显栈预算风险，实际故障根因尚无崩溃日志确认，需先离线修复再另批新镜像。
+
+## 历史：FAT32挂载通过但写后回复超时
+
+经用户授权将同一张64GB卡在电脑格式化为FAT32/MBR后，板上首次挂载成功且last-error=0；唯一测试文件写入请求回复超时，写入成败未知，未重发。后续仅查询SD状态得到unmounted，未读回或显式卸载，读写验收尚未通过。可取卡至电脑只读检查`S7D9C21A.TXT`；不再格式化/补写/重刷。详见[SD卡API](docs/SD_CARD.md)。
+
+## 历史：0.5.10首次exFAT实卡挂载失败
+
+启动只读验收通过；随后用户插卡并允许测试文件，唯一挂载请求接受后`mounting→unmounted`、错误ESP_FAIL(-1)。文件读写/格式化均0，计划测试文件未创建。TCP释放，无复位/重试/额外固件写；最后LCD观测sd-blocked，需用户取卡后才能恢复。现有错误信息不足以确定格式或SPI根因，不能称SD可用。详见[SD卡API](docs/SD_CARD.md)。
+
+### 已完成：0.5.10部署与初始只读启动
+
+准确批准`0.5.10-sd-card-usb`（SHA256 `7ef04268894d093064c8edf5ab1fd88c31921557a60e99256cd1514fc4b98964`，1,252,512字节，擦写`[0x10000,0x142000)`/306扇区）后，唯一USB应用写入成功；实际完整4MiB SDK摘要及8安全字段保护通过。重建参考非新双读。用户明确继续后，一次正常RTS只读180.142秒：factory/0.5.10/ELF前缀33d209f8c、2159ms probe PASS、PSRAM六模式、ILI9341帧1→1351、心跳0→177、联网后34条healthy。未发送UART/TCP表达式，未操作SD或独立目视LCD；SD卡检测/挂载/读写尚未验收。写权限已耗尽；SD卡文件写须用户另行明确许可。详见[SD卡API](docs/SD_CARD.md)。
+
+## 历史阻断：0.5.10写后保护通过，启动采集曾被主机权限阻断（后来通过）
+
+用户明确继续后，实际完整4 MiB SDK摘要与重建expected匹配、8安全字段不变，写后保护通过；参考不是新双读。随后尝试180秒只读启动，因我创建的执行目录权限0755不符合采集器要求而在串口构造/打开、RTS之前退出；实际启动和180秒观察均未进行。目录已改0700，失败marker保留，不自动重试；等待用户明确继续。固件写权限已耗尽，SD卡未操作。详见`.local/flash/sd-card-0.5.10-replug1/execution-boot-blocked.json`。
+
+## 历史：0.5.10写后全片保护曾因主机路径错误阻断（随后通过）
+
+用户准确批准`0.5.10-sd-card-usb` SHA256 `7ef04268894d093064c8edf5ab1fd88c31921557a60e99256cd1514fc4b98964`／1,252,512字节／镜像`[0x10000,0x141ca0)`／擦写`[0x10000,0x142000)`/306扇区的一次factory USB写入和180秒只读启动；确认SD卡已取出。重插后新预检同板/8安全字段/actual完整4MiB 0.5.9基线/旧引导全部通过，唯一`write_flash`成功，写入1,252,512字节并报告hash verified/ROM held。
+
+写后4MiB verify因本地helper传入错误的expected文件路径退出2，在串口访问前停止。不是实片不匹配，但实际写后full Flash/安全字段保护未核验；无post-protection summary或正常启动。USB写入权限已消费；无重试/恢复/SD I/O，设备未再探测，最后写入日志称ROM held。当前尚无已验收的0.5.10部署。等待用户明确指示后才修正helper并进行只读保护验证；不可再写/恢复。详见[SD卡验收](docs/SD_CARD.md)及私有`.local/flash/sd-card-0.5.10-replug1/execution-postwrite-blocked.json`。
+
+## 最近已确认healthy：0.5.9 LCD help（之后已写SD候选，当前状态未验）
+
+0.5.9-lcd-help-usb准确批准SHA256 `b40ba185fd4719f3c558d33cf466413b85b42f09cb8b413cb62af4446aa4493a`／1,200,096字节／`[0x10000,0x135000)`／293扇区后，新同板/8字段/actual完整0.5.8基线/旧引导预检通过，唯一USB应用写入66.6秒。app/FFpadding/全部补集/8字段/actual完整4MiB保护通过；无重试/恢复/OTA或引导/表/NVS/eFuse写入。一次180.133秒正常只读启动通过：factory/0.5.9/冻结ELF前缀562037d04、2140ms probe PASS、PSRAM六模式、ILI9341帧1→1351/心跳0→178、联网后34条healthy。
+
+本次未对LCD/SD/API发交互命令；未目视新帮助页，也未挂载/操作SD。随后源码实现了opt-in SDSPI/FATFS Lisp API（详情见[SD卡API](docs/SD_CARD.md)），尚未部署或实卡测试，故板上仍无SD支持。
+
+最新私有参考`.local/flash/lcd-help-0.5.9-freeze2/post-protection/current-0.5.9-expected.bin`重建且actual完整SDK匹配，非新双读；全部Flash/security保护在最终启动前，之后只有UART采集/本地解析。写权限耗尽，UART/TCP释放，无后台任务。候选基于干净已推送提交`fcf5c9e`，181源码文件快照冻结且后续仅验收文档更新。
+
+### 最新源码开发：opt-in SD卡异步文件API（未部署）
+
+以GPIO21 LCD/卡检测租约为前提，新增可选 `CONFIG_BOARD_SDCARD_ENABLE` 与Lisp `sd-mount/status/unmount/read/write/result/last-error`；SDSPI引脚使用GPIO2/13/14/15、LCD须先off，JTAG共享GPIO13–15。候选0.5.10已获准确批准并写入一次，写后full4MiB SDK摘要及安全字段、180秒只读启动验收通过；实卡仍未测试。固件写权限已耗尽，不自动重写。详细记录见[SD API文档](docs/SD_CARD.md)。镜像批准不包含SD卡持久读写。
+
+FatFs直接逻辑盘访问，不注册POSIX VFS/IRAM时间转换路径；安全扁平ASCII文件名，`sd-read`返回≤240字节文本，`sd-write`可持久创建或截断≤512字节文本文件，无目录/二进制/自动格式化/启动挂载/热插拔。源码API未部署，实卡读写未验收。启用与资源限制见[SD卡API](docs/SD_CARD.md)。
+
+## 历史0.5.8 LCD生命周期部署与有限交互
+
+0.5.8准确批准SHA256 `d0f8998c6a35e231084a1ea979213655fb41cd7d963f6ff71124890bd0089fc2`／1,199,600字节／`[0x10000,0x135000)`／293扇区后唯一USB应用写入66.5秒；同板/8字段/actual完整0.5.7基线/旧引导、准确应用/FFpadding/全部补集/actual完整4MiB保护通过，无重试/恢复/OTA/引导/表/NVS/eFuse写入。180.120秒正常只读启动healthy。之后用户要求的一轮生命周期测试状态on→off→starting→on，关屏3.5秒后REPL仍能求值且RAM定义保留；未插拔/读写SD或独立目视。详见[单槽USB](docs/SINGLE_APP_USB.md)。
 
 最新私有参考 `.local/flash/lcd-lifecycle-0.5.8/post-protection/current-0.5.8-expected.bin` 重建且actual完整SDK匹配，非新双读；全部Flash/security保护在最终启动前；随后另记一次TCP RAM生命周期测试，没有再次Flash/security访问。写授权耗尽，UART/TCP释放，无后台任务。候选基于当时未提交工作树/base commit `912112b`，不是该提交直接构建。本次提交包含生命周期实现、验收文档与后续 `:help-lcd` 说明页；新说明页尚未重刷，已部署的冻结0.5.8镜像不变。
 
+## 历史0.5.9 LCD help 部署（后续源码已新增未部署的SD API）
+
+准备阶段从已推送干净提交fcf5c9e独立构建并冻结 `0.5.9-lcd-help-usb`，随后获对准确SHA/范围批准并部署。镜像1200096字节，SHA256 `b40ba185fd4719f3c558d33cf466413b85b42f09cb8b413cb62af4446aa4493a`，擦写`[0x10000,0x135000)`/293扇区，与0.5.8相同。实际预检/唯一USB写入66.6秒/保护和180.133秒正常只读启动均通过；未对新`:help-lcd`进行REPL交互，LCD目视/SD测试未做。部署记录和当前基线见`.local/flash/lcd-help-0.5.9-freeze2/`；后续SD源代码未重刷。
 ## 历史0.5.7 双条带 DMA 流水线（已被0.5.8替换）
 
 准确批准SHA256 `499b106100c441fc274305ac9b1cc912091bb31e5ec86311c58b83d3d6ae56da`／1,197,712字节／`[0x10000,0x135000)`／293扇区后，新完整预检通过，唯一USB应用写入66.5秒。app/FFpadding/全部补集/8字段/actual完整4MiB保护通过，无写重试/OTA/恢复或引导/表/NVS/eFuse写入；一次180.138秒正常只读启动healthy。
@@ -157,9 +230,10 @@ HTTPS8443认证 `POST /repl`，原token/TLS，无新裸TCP监听/WebSocket/浏�
 | LCD | 固定ILI9341 / 320×240、40×20 ASCII终端；两次一致9341才初始化，未知ID停止；提交日志通过，终端目视待反馈 |
 | LispBM | USB UART115200＋无认证TCP2323，共享RAM；0.5.0只读启动/probe通过，URL加载/应用切换未交互验收；旧交互仅历史 |
 | Wi-Fi | 应用内嵌凭据，启动自动连接；美国 US / 信道 1–11 / MANUAL，仅 2.4 GHz；不写旧 NVS |
-| 网络 | 明文TCP2323 REPL无TLS/token；可选出站HTTPS URL loader，无HTTPS8443/status/health/OTA服务 |
+| 网络 | 明文TCP2323 REPL无TLS/token；可选出站HTTPS URL loader，无HTTPS8443/status/health/OTA服务；SD文件API仅后续opt-in源码，板上0.5.9未启用 |
 | 固件更新 | 单factory2.625MiB，USB更新／电脑恢复；首次应用＋表迁移通过，无板上镜像回退，实际写回恢复尚未验收 |
-| 未实现 | DSP/音频、蓝牙键盘/音箱、SD、Agent、BLE、LoRa、uLisp；不提供明文 HTTP、文件管理、任意命令或网络 bootloader/分区表更新 |
+| SD 卡 | SDSPI/FatFs异步Lisp API源代码opt-in实现，0.5.9板上未部署；实卡/电气未测试 |
+| 未实现 | DSP/音频、蓝牙键盘/音箱、Agent、BLE、LoRa、uLisp；不提供明文HTTP、任意命令或网络bootloader/分区表更新 |
 
 原周期翻转的根因尚未确认。已移除旧 UNKNOWN-ID 双驱动轮换，用户确认 bootstrap 无翻转；B 的刷新日志不能冒充助手全程目视观察。
 
@@ -196,7 +270,9 @@ URL源码两主机模型各149项C ASan/UBSan、28Python、4历史mock、六配�
 | [构建](docs/BUILD.md) | 固定工具链、默认关闭与 OTA 配置、测试 |
 | [LispBM REPL](docs/LISP_REPL.md) | 当前UART/LCD与首次失败/修复历史 |
 | [LispBM 应用层](docs/LISP_APPS.md) | 已部署配置；Tiny2D实际运行并退出，LCD目视待验收 |
-| [DMA流水线](docs/DMA_PIPELINE.md) | 默认关闭、板上明确启用；正常路径有限实测通过，目视/故障注入未测 |\n| [LCD 生命周期](docs/LCD_LIFECYCLE.md) | 0.5.8已部署/只读启动通过；LCD开关/SD卡检测互斥未实机交互验收，未接入SD驱动 |
+| [DMA流水线](docs/DMA_PIPELINE.md) | 默认关闭、板上明确启用；正常路径有限实测通过，目视/故障注入未测 |
+| [LCD 生命周期](docs/LCD_LIFECYCLE.md) | LCD lifecycle API已部署；SD互斥与0.5.12实卡FAT32读写通过 |
+| [SD 卡 API](docs/SD_CARD.md) | 0.5.12已部署SDSPI/FatFs/Lisp API及32KiB `app-load-sd`；实卡普通文件读写通过，app-load实际执行待验 |
 | [URL 应用加载](docs/APP_URL_LOADING.md) | 已部署配置；HTTPS→RAM／状态／取消，已实际加载Tiny2D，其他边界未测 |
 | [蓝牙键盘调研](docs/BLUETOOTH_KEYBOARD.md) | 离线HID Host选型、配对/NVS阻断与最小输入接入方案；尚未实现 |
 | [Wi-Fi REPL](docs/WIFI_REPL.md) | 当前无认证TCP2323/nc协议与原owner/RAM边界 |
@@ -219,7 +295,8 @@ URL源码两主机模型各149项C ASan/UBSan、28Python、4历史mock、六配�
 main/                        FreeRTOS 启动、心跳、健康汇总、PSRAM 自检
 components/node_status/      队列接收方独占状态及 JSON
 components/memory_pattern/   可在主机测试的纯内存模式算法
-components/board_display/    固定 v4.1 接线、ILI9341、独立显示任务
+components/board_display/    固定 v4.1 接线、ILI9341、LCD/SD GPIO 生命周期互斥
+components/board_sdcard/     opt-in SDSPI/FatFs async worker 与有界 Lisp 文件 API
 components/wifi_service/     扫描、STA/DHCP、嵌入凭据及纯状态逻辑
 components/ota_service/      历史双槽回归，仅显式选择，当前固件不链接
 components/lisp_app/         双画布所有权、裁剪/光栅与控制解析

@@ -1,6 +1,9 @@
 #include "lisp_runtime.h"
 #include "lisp_app_runtime.h"
 #include "lisp_lcd_runtime.h"
+#if defined(CONFIG_BOARD_SDCARD_ENABLE) && CONFIG_BOARD_SDCARD_ENABLE
+#include "lisp_sd_runtime.h"
+#endif
 #include "lisp_load_runtime.h"
 #include "lispbm.h"
 
@@ -13,7 +16,7 @@ enum {
     HEAP_CELLS = 8192,
     MEMORY_BLOCKS = 1024,
     IMAGE_WORDS = 8192,
-    EXTENSIONS = 16,
+    EXTENSIONS = 24,
     RESULT_CAPACITY = 512,
     STEP_BATCH = 64,
     EVAL_TIMEOUT_MS = 5000,
@@ -179,6 +182,11 @@ bool lisp_runtime_reset(void)
     init_stage = "lcd-extensions";
     if (!lisp_lcd_runtime_register())
         return false;
+#if defined(CONFIG_BOARD_SDCARD_ENABLE) && CONFIG_BOARD_SDCARD_ENABLE
+    init_stage = "sd-extensions";
+    if (!lisp_sd_runtime_register())
+        return false;
+#endif
     init_stage = "ready";
     initialized = true;
     return true;

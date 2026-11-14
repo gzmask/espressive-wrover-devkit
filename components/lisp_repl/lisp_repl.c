@@ -6,6 +6,9 @@
 #error "The first REPL profile requires the existing UART0 console at 115200"
 #endif
 #include "board_display.h"
+#if defined(CONFIG_BOARD_SDCARD_ENABLE) && CONFIG_BOARD_SDCARD_ENABLE
+#include "board_sdcard.h"
+#endif
 #include "driver/uart.h"
 #include "esp_app_desc.h"
 #include "esp_heap_caps.h"
@@ -179,7 +182,7 @@ static bool perf_control(const char *source)
 #endif
 static void show_help(void)
 {
-    bool app = false, url = false, tcp = false;
+    bool app = false, url = false, tcp = false, sd = false;
 #if CONFIG_LISP_APP_ENABLE
     app = true;
 #endif
@@ -189,7 +192,10 @@ static void show_help(void)
 #if CONFIG_WIFI_REPL_ENABLE
     tcp = true;
 #endif
-    repl_help_write(output, NULL, app, url, tcp);
+#if defined(CONFIG_BOARD_SDCARD_ENABLE) && CONFIG_BOARD_SDCARD_ENABLE
+    sd = true;
+#endif
+    repl_help_write(output, NULL, app, url, tcp, sd);
 }
 static void prompt(void)
 {
@@ -241,14 +247,25 @@ static void input_byte(uint8_t byte)
             message(reply);
             finish();
         } else if (lisp_runtime_load_active()) {
-            message("ERROR: URL load active; use :load-status or :load-cancel\n");
+            message("ERROR: app load active; use :load-status or :load-cancel\n");
             finish();
         } else if (!strcmp(frontend.source, ":help")) {
             show_help();
             finish();
         } else if (!strcmp(frontend.source, ":help-lcd")) {
-            repl_help_lcd_write(output, NULL);
+            repl_help_lcd_write(output, NULL,
+#if defined(CONFIG_BOARD_SDCARD_ENABLE) && CONFIG_BOARD_SDCARD_ENABLE
+                                true
+#else
+                                false
+#endif
+            );
             finish();
+#if defined(CONFIG_BOARD_SDCARD_ENABLE) && CONFIG_BOARD_SDCARD_ENABLE
+        } else if (!strcmp(frontend.source, ":help-sd")) {
+            repl_help_sd_write(output, NULL);
+            finish();
+#endif
         } else if (!strcmp(frontend.source, ":clear")) {
             lcd_terminal_init(&frontend.terminal);
             finish();
@@ -305,7 +322,7 @@ static void remote_poll(void)
     }
     if (lisp_runtime_load_active()) {
         remote.status = ESP_OK;
-        static const char loading[] = "ERROR: URL load active; use :load-status or :load-cancel\n";
+        static const char loading[] = "ERROR: app load active; use :load-status or :load-cancel\n";
         repl_remote_reply_append(&remote.reply, loading, sizeof(loading) - 1);
         remote_complete();
         return;
@@ -339,7 +356,17 @@ static void remote_poll(void)
     if (!strcmp(remote.source, ":help"))
         show_help();
     else if (!strcmp(remote.source, ":help-lcd"))
-        repl_help_lcd_write(output, NULL);
+        repl_help_lcd_write(output, NULL,
+#if defined(CONFIG_BOARD_SDCARD_ENABLE) && CONFIG_BOARD_SDCARD_ENABLE
+                            true
+#else
+                            false
+#endif
+        );
+#if defined(CONFIG_BOARD_SDCARD_ENABLE) && CONFIG_BOARD_SDCARD_ENABLE
+    else if (!strcmp(remote.source, ":help-sd"))
+        repl_help_sd_write(output, NULL);
+#endif
     else if (!strcmp(remote.source, ":clear")) {
         lcd_terminal_init(&frontend.terminal);
         message("LCD cleared\n");
@@ -392,6 +419,39 @@ static display_lifecycle_state_t lcd_status(void *user)
     (void)user;
     return board_display_status();
 }
+#if defined(CONFIG_BOARD_SDCARD_ENABLE) && CONFIG_BOARD_SDCARD_ENABLE
+static bool sd_load_request(void *user, const char *name, size_t length)
+{
+    (void)user;
+    return board_sdcard_source_request(name, length);
+}
+static lisp_app_url_phase_t sd_load_poll(void *user, const char **source, size_t *length)
+{
+    (void)user;
+    switch (board_sdcard_source_poll(source, length)) {
+    case BOARD_SOURCE_FETCHING:
+        return LISP_APP_URL_FETCHING;
+    case BOARD_SOURCE_READY:
+        return LISP_APP_URL_READY;
+    case BOARD_SOURCE_FAILED:
+        return LISP_APP_URL_FAILED;
+    case BOARD_SOURCE_LEASED:
+        return LISP_APP_URL_LEASED;
+    default:
+        return LISP_APP_URL_IDLE;
+    }
+}
+static void sd_load_cancel(void *user)
+{
+    (void)user;
+    board_sdcard_source_cancel();
+}
+static void sd_load_release(void *user)
+{
+    (void)user;
+    board_sdcard_source_release();
+}
+#endif
 static void repl_task(void *argument)
 {
     (void)argument;
@@ -416,6 +476,17 @@ static void repl_task(void *argument)
         vTaskDelete(NULL);
         return;
     }
+#if defined(CONFIG_BOARD_SDCARD_ENABLE) && CONFIG_BOARD_SDCARD_ENABLE
+    esp_err_t sd_error = board_sdcard_start();
+    if (sd_error != ESP_OK)
+        ESP_LOGE(TAG, "SD API worker unavailable: %s; REPL remains healthy", esp_err_to_name(sd_error));
+    else {
+        const lisp_app_url_backend_t sd_backend = {NULL, sd_load_request, sd_load_poll, sd_load_cancel,
+                                                   sd_load_release};
+        if (!lisp_runtime_load_attach_sd(&sd_backend))
+            ESP_LOGE(TAG, "SD app loader unavailable");
+    }
+#endif
     const display_lifecycle_backend_t lcd_backend = {NULL, lcd_request, lcd_status};
     if (!lisp_runtime_lcd_attach(&lcd_backend))
         ESP_LOGE(TAG, "LCD lifecycle unavailable");
@@ -489,7 +560,7 @@ static void repl_task(void *argument)
             (load_was_active && !lisp_runtime_load_active()))
             (void)uart_flush_input(UART_NUM_0); /* Buffered foreground input must not become new source. */
         if (load_was_active && !lisp_runtime_load_active()) {
-            message("URL load: ");
+            message("App load: ");
             message(lisp_runtime_load_status());
             message("\n");
         }

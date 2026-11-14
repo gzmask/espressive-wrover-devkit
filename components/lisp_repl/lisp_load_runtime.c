@@ -1,12 +1,16 @@
 #include "lisp_load_runtime.h"
 #include "lispbm.h"
+#if defined(CONFIG_BOARD_SDCARD_ENABLE) && CONFIG_BOARD_SDCARD_ENABLE
+#include "board_sdcard_logic.h"
+#endif
 #include <stdio.h>
 #include <string.h>
 
 typedef enum { LOAD_IDLE, LOAD_QUEUED, LOAD_FETCHING, LOAD_EVALUATING } load_phase_t;
 static load_phase_t phase;
-static lisp_app_url_backend_t backend;
-static bool attached;
+static lisp_app_url_backend_t url_backend, sd_backend;
+static lisp_app_url_backend_t *backend;
+static bool url_attached, sd_attached;
 static char pending_url[LISP_APP_URL_CAPACITY];
 static size_t pending_length;
 static const char *status = "idle";
@@ -17,8 +21,17 @@ bool lisp_runtime_load_attach(const lisp_app_url_backend_t *transport)
     if (phase != LOAD_IDLE || !transport || !transport->request || !transport->poll || !transport->cancel ||
         !transport->release)
         return false;
-    backend = *transport;
-    attached = true;
+    url_backend = *transport;
+    url_attached = true;
+    return true;
+}
+bool lisp_runtime_load_attach_sd(const lisp_app_url_backend_t *transport)
+{
+    if (phase != LOAD_IDLE || !transport || !transport->request || !transport->poll || !transport->cancel ||
+        !transport->release)
+        return false;
+    sd_backend = *transport;
+    sd_attached = true;
     return true;
 }
 bool lisp_runtime_load_active(void)
@@ -32,8 +45,8 @@ const char *lisp_runtime_load_status(void)
 void lisp_load_runtime_reset(void)
 {
     if (phase != LOAD_IDLE) {
-        if (attached)
-            backend.cancel(backend.user);
+        if (backend)
+            backend->cancel(backend->user);
         phase = LOAD_IDLE;
         status = "cancelled";
     } else
@@ -58,7 +71,7 @@ bool lisp_runtime_load_control(const char *source, size_t length, char *reply, s
     if (!source || !reply || capacity < 128)
         return false;
     if (length == 12 && !memcmp(source, ":load-status", 12)) {
-        (void)snprintf(reply, capacity, "URL load: %s\n", status);
+        (void)snprintf(reply, capacity, "App load: %s\n", status);
         return true;
     }
     if (length == 12 && !memcmp(source, ":load-cancel", 12)) {
@@ -66,10 +79,10 @@ bool lisp_runtime_load_control(const char *source, size_t length, char *reply, s
         bool evaluating = phase == LOAD_EVALUATING || (phase == LOAD_QUEUED && lisp_runtime_busy());
         lisp_runtime_load_cancel();
         (void)snprintf(reply, capacity, "%s",
-                       !active                 ? "No URL load active\n"
+                       !active                 ? "No app load active\n"
                        : !lisp_runtime_ready() ? "ERROR: runtime reset failed\n"
-                       : evaluating            ? "URL load cancelled; ALL RAM definitions cleared\n"
-                                               : "URL load cancelled; existing definitions preserved\n");
+                       : evaluating            ? "App load cancelled; ALL RAM definitions cleared\n"
+                                               : "App load cancelled; existing definitions preserved\n");
         return true;
     }
     return false;
@@ -81,25 +94,51 @@ static lbm_value load_url(lbm_value *arguments, lbm_uint count)
     if (count != 1 || !lbm_dec_str_size(arguments[0], &url, &size) || !url || size < 2 ||
         size > LISP_APP_URL_CAPACITY || url[size - 1] != 0 || !lisp_app_url_valid(url, size - 1))
         return ENC_SYM_TERROR;
-    if (!attached || lisp_runtime_app_active() || lisp_runtime_load_active())
+    if (!url_attached || lisp_runtime_app_active() || lisp_runtime_load_active())
         return ENC_SYM_EERROR;
     memcpy(pending_url, url, size);
+    backend = &url_backend;
     pending_length = size - 1;
     phase = LOAD_QUEUED;
     status = "queued";
     return ENC_SYM_TRUE;
 }
+#if defined(CONFIG_BOARD_SDCARD_ENABLE) && CONFIG_BOARD_SDCARD_ENABLE
+static lbm_value load_sd(lbm_value *arguments, lbm_uint count)
+{
+    char *name = NULL;
+    size_t size = 0;
+    if (count != 1 || !lbm_dec_str_size(arguments[0], &name, &size) || !name || size < 2 ||
+        size > BOARD_SDCARD_FILENAME_MAX + 1 || name[size - 1] != 0 ||
+        !board_sdcard_filename_valid(name, size - 1))
+        return ENC_SYM_TERROR;
+    if (!sd_attached || lisp_runtime_app_active() || lisp_runtime_load_active())
+        return ENC_SYM_EERROR;
+    memcpy(pending_url, name, size);
+    backend = &sd_backend;
+    pending_length = size - 1;
+    phase = LOAD_QUEUED;
+    status = "queued";
+    return ENC_SYM_TRUE;
+}
+#endif
 bool lisp_load_runtime_register(void)
 {
-    return lbm_add_extension("app-load-url", load_url);
+    if (!lbm_add_extension("app-load-url", load_url))
+        return false;
+#if defined(CONFIG_BOARD_SDCARD_ENABLE) && CONFIG_BOARD_SDCARD_ENABLE
+    return lbm_add_extension("app-load-sd", load_sd);
+#else
+    return true;
+#endif
 }
 void lisp_load_runtime_finished(bool success)
 {
     if (phase == LOAD_QUEUED) {
-        if (success && backend.request(backend.user, pending_url, pending_length)) {
+        if (success && backend && backend->request(backend->user, pending_url, pending_length)) {
             phase = LOAD_FETCHING;
             started_ms = 0;
-            status = "downloading";
+            status = backend == &sd_backend ? "reading" : "downloading";
         } else {
             phase = LOAD_IDLE;
             status = "failed";
@@ -117,19 +156,19 @@ void lisp_load_runtime_step(uint64_t now_ms)
     if (!started_ms)
         started_ms = now_ms + 1;
     if (now_ms + 1 - started_ms >= LISP_APP_URL_TIMEOUT_MS + 5000) {
-        backend.cancel(backend.user);
+        backend->cancel(backend->user);
         phase = LOAD_IDLE;
         status = "failed";
         return;
     }
     const char *source = NULL;
     size_t length = 0;
-    lisp_app_url_phase_t result = backend.poll(backend.user, &source, &length);
+    lisp_app_url_phase_t result = backend->poll(backend->user, &source, &length);
     if (result == LISP_APP_URL_READY) {
         phase = LOAD_EVALUATING;
         status = "loading";
         bool submitted = lisp_runtime_submit_loaded(source, length, now_ms);
-        backend.release(backend.user); /* Runtime owns an independent copy now. */
+        backend->release(backend->user); /* Runtime owns an independent copy now. */
         if (!submitted) {
             phase = LOAD_IDLE;
             status = "failed";
