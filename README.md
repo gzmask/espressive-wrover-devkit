@@ -2,6 +2,10 @@
 
 ESP-WROVER-KIT v4.1 / 经典 ESP32 的 ESP-IDF 固件：FreeRTOS、PSRAM、ILI9341、自动 Wi-Fi、USB固件更新与 RAM-only LispBM REPL。
 
+## 新源码：Lisp 通用数据 API（离线，未部署）
+
+新增异步 HTTPS GET、有界 JSON、单调/UTC 时间查询及字符串格式化，供后续 Open-Meteo 天气应用使用；HTTP 正文不执行，应用运行中可轮询，取消/复位不复用迟到 worker 缓冲。HTTP 默认关闭，需 `tests/sdkconfig.http.defaults`；`:help-data` 提供说明。当前仅离线开发，无真实天气请求或设备操作，板上仍为既有 0.5.12。接口与限制见 [Lisp 数据 API](docs/LISP_DATA_APIS.md)。
+
 ## 最新demo验收：三份SD源码加载、短运行和q退出闭环通过
 
 用户允许既有demo的SD加载和运行验收后，同一卡fresh核验并独占写入`DEMO.LSP`（658）、`TINY2D.LSP`（1096）、`TINYGL.LSP`（2438字节），精确读回并安全弹出。用户插卡后，一个新TCP会话唯一挂载、三份各一次app-load-sd全部loaded/定义通过（实际658/1096/2438字节、close/fat/error=0），成功卸载。用户取卡后LCD已恢复，demo/tiny2d/tinygl各运行约5秒并一次q退出，终端及定义保留检查通过；最终LCD on/SD unmounted、卡在板外、端口释放。三个定义保留RAM，可直接app-run；物理LCD目视/FPS、32KiB及长期压力仍未测，不format/固件写。

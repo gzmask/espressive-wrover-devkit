@@ -9,3 +9,4 @@ void repl_help_write(repl_help_output_t output, void *user, bool app, bool url, 
 /* Dedicated LCD and SD lifecycle pages; bounded to the REPL/LCD layout. */
 void repl_help_lcd_write(repl_help_output_t output, void *user, bool sd);
 void repl_help_sd_write(repl_help_output_t output, void *user);
+void repl_help_data_write(repl_help_output_t output, void *user, bool http);

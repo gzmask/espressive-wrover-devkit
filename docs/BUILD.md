@@ -1,5 +1,11 @@
 # 构建、测试与工具链
 
+## 新数据 API：仅离线开发
+
+HTTP 追加 `tests/sdkconfig.http.defaults`，依赖已启用的 Lisp REPL 和 Wi-Fi station；无需 URL loader。JSON/时间/字符串帮助随 REPL 提供，HTTP 关闭时 GET 返回 unavailable。源码阶段不冻结、不部署，板上仍为 0.5.12。API、完整性/资源限制与示例见 [LISP_DATA_APIS.md](LISP_DATA_APIS.md)。
+
+新独立目录 `.local/build-api-gaps-{full,disabled,http-only,uart,off}1/`，显式版本 `0.6.0-lisp-data-*-dev`：full 为 HTTP+URL+TCP+SD+DMA/perf，disabled 仅禁用新 HTTP worker，http-only 启用 HTTP/不启用源码 URL loader，uart 无 Wi-Fi，off 为根默认关闭功能。五配置离线编译通过，均非可直接刷写候选。默认及 word32 两主机模型需显式 `-DENABLE_LISPBM_TESTS=ON`；word32 仍使用原有 Rosetta/低地址模型，不等价 Xtensa 实机。没有设备或真实天气 API 请求。
+
 ## 当前0.5.1：帮助改进配置已部署
 
 `.local/build-help-candidate` / `PROJECT_VER=0.5.1-help-usb`已准确批准并唯一USB应用写入；实际完整4MiB保护及180.183秒只读启动通过，help/URL交互未测。主机两模型各150项、28 Python/4历史mock、full及UART离线构建通过。当前事实与最新参考见 [SINGLE_APP_USB.md](SINGLE_APP_USB.md)。

@@ -2,6 +2,7 @@
 #include "display_lifecycle.h"
 #include "lisp_app.h"
 #include "lisp_app_url.h"
+#include "lisp_http.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -20,6 +21,10 @@ bool lisp_runtime_submit(const char *source, size_t length, uint64_t now_ms);
 void lisp_runtime_step(uint64_t now_ms);
 bool lisp_runtime_busy(void);
 bool lisp_runtime_ready(void);
+/* Data service calls remain on the original owner; worker never touches Lisp.
+ * Poll leases bytes until release; reset/owning app exit abandons in-flight IO. */
+bool lisp_runtime_http_attach(const lisp_http_backend_t *backend);
+bool lisp_runtime_time_attach(int64_t (*unix_seconds)(void *), void *user);
 /* Trusted boot probe; service health is withheld until actual (+ 1 2) == 3. */
 bool lisp_runtime_selftest_start(uint64_t now_ms);
 bool lisp_runtime_selftest_passed(void);

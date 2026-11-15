@@ -39,8 +39,35 @@ void repl_help_write(repl_help_output_t output, void *user, bool app, bool url, 
     if (tcp)
         emit(output, user, "TCP2323: no auth; trusted LAN only\n");
     emit(output, user,
-         "Enter eval/multiline; BS/DEL edit\n"
+         ":help-data: HTTP/JSON/time/strings\n"
          "Restart clears RAM; no save\n");
+}
+
+void repl_help_data_write(repl_help_output_t output, void *user, bool http)
+{
+    if (output == NULL)
+        return;
+    emit(output, user,
+         "Data API: RAM only; never eval body\n"
+         "(http-get \"https://host/path\")\n"
+         "Returns (ok id) or (error reason)\n"
+         "(http-poll id): (pending) or\n"
+         "(ok status body)/(error reason status)\n"
+         "(http-cancel id) (http-release id)\n"
+         "Release after poll; one slot, no retry\n"
+         "HTTPS GET; <=8192 bytes; no redirect\n");
+    emit(output, user, http ? "HTTP enabled; TLS needs set clock\n" : "HTTP unavailable in this build\n");
+    emit(output, user,
+         "(json-parse text): (ok value)/error\n"
+         "(json-get object \"key\") / array index\n"
+         "json-null/json-false/json-true\n"
+         "Missing field/index: json-missing\n"
+         "(str-from-n number [digits:0..6])\n"
+         "(str-join strings [separator])\n"
+         "(monotonic-ms): refresh intervals\n"
+         "(time-unix): UTC seconds or nil\n"
+         "(time-status): set/unset, not trusted\n"
+         "App callbacks: poll, never wait/sleep\n");
 }
 
 void repl_help_lcd_write(repl_help_output_t output, void *user, bool sd)

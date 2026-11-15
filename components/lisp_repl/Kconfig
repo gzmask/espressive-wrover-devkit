@@ -40,6 +40,18 @@ menu "LispBM REPL"
             CA/hostname/date validation; request-triggered SNTP if clock unset.
             No redirect, HTTP fallback, automatic app-run, Flash/NVS writes,
             persistent installation, dependency manager or boot-time requests.
+    config LISP_HTTP_ENABLE
+        bool "Enable asynchronous HTTPS data GET from Lisp"
+        depends on LISP_REPL_ENABLE && WIFI_SERVICE_CONNECT_ENABLE
+        select ESP_HTTP_CLIENT_ENABLE_HTTPS
+        select MBEDTLS_CERTIFICATE_BUNDLE
+        select MBEDTLS_HAVE_TIME_DATE
+        default n
+        help
+            Single bounded 8 KiB PSRAM response, original Lisp owner copies data.
+            CA/hostname/date verification, shared request-triggered SNTP.
+            No eval, POST, auth, redirect, compression, retry or boot requests.
+            JSON/time/string helpers remain available with HTTP disabled.
     config WIFI_REPL_ENABLE
         bool "Enable plain TCP REPL on port2323 (no TLS/token)"
         depends on LISP_REPL_ENABLE && WIFI_SERVICE_CONNECT_ENABLE

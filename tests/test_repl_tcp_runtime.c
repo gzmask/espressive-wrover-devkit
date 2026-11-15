@@ -25,6 +25,8 @@ static repl_remote_status_t evaluate(const char *source, size_t length, char *te
     repl_remote_reply_init(&reply);
     if (!strcmp(source, ":help")) {
         repl_help_write(output, NULL, true, true, true, true);
+    } else if (!strcmp(source, ":help-data")) {
+        repl_help_data_write(output, NULL, false);
     } else if (!strcmp(source, ":help-lcd")) {
         repl_help_lcd_write(output, NULL, true);
     } else if (!strcmp(source, ":help-sd")) {
@@ -84,6 +86,9 @@ int main(void)
     command(pair[0], "(define twice (lambda (x) (* x 2)))\n", "=>");
     command(pair[0], "(twice 21)\n", "=> 42");
     command(pair[0], ":help\n", "(sd-mount) (sd-read ...)");
+    command(pair[0], ":help-data\n", "HTTP unavailable");
+    command(pair[0], "(str-join (list (str-from-n 12.5 1) \"C\") \" \")\n", "12.5 C");
+    command(pair[0], "(http-get \"https://example.com/a\")\n", "(error unavailable)");
     command(pair[0], ":help-lcd\n", "wait off BEFORE inserting");
     command(pair[0], ":help-sd\n", "sd-write truncates");
     command(pair[0], "(twice 21)\n", "=> 42");

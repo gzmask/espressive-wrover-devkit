@@ -19,6 +19,9 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "lisp_runtime.h"
+#if CONFIG_LISP_HTTP_ENABLE
+#include "lisp_http_service.h"
+#endif
 #if CONFIG_LISP_APP_URL_ENABLE
 #include "lisp_app_url_service.h"
 #endif
@@ -32,6 +35,7 @@
 #include <stdatomic.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 enum { REPL_STACK_BYTES = 6144, RX_BYTES = 2048, UART_EVENTS = 8 };
 static const char *TAG = "lisp_repl";
@@ -197,6 +201,14 @@ static void show_help(void)
 #endif
     repl_help_write(output, NULL, app, url, tcp, sd);
 }
+static void show_data_help(void)
+{
+    bool http = false;
+#if CONFIG_LISP_HTTP_ENABLE
+    http = true;
+#endif
+    repl_help_data_write(output, NULL, http);
+}
 static void prompt(void)
 {
     static const char app_prompt[] = "app> Ctrl-C stops"
@@ -251,6 +263,9 @@ static void input_byte(uint8_t byte)
             finish();
         } else if (!strcmp(frontend.source, ":help")) {
             show_help();
+            finish();
+        } else if (!strcmp(frontend.source, ":help-data")) {
+            show_data_help();
             finish();
         } else if (!strcmp(frontend.source, ":help-lcd")) {
             repl_help_lcd_write(output, NULL,
@@ -355,6 +370,8 @@ static void remote_poll(void)
     remote.status = ESP_OK;
     if (!strcmp(remote.source, ":help"))
         show_help();
+    else if (!strcmp(remote.source, ":help-data"))
+        show_data_help();
     else if (!strcmp(remote.source, ":help-lcd"))
         repl_help_lcd_write(output, NULL,
 #if defined(CONFIG_BOARD_SDCARD_ENABLE) && CONFIG_BOARD_SDCARD_ENABLE
@@ -452,6 +469,11 @@ static void sd_load_release(void *user)
     board_sdcard_source_release();
 }
 #endif
+static int64_t unix_seconds(void *user)
+{
+    (void)user;
+    return (int64_t)time(NULL);
+}
 static void repl_task(void *argument)
 {
     (void)argument;
@@ -465,6 +487,7 @@ static void repl_task(void *argument)
         vTaskDelete(NULL);
         return; /* Allocations quarantined; no automatic restart. */
     }
+    (void)lisp_runtime_time_attach(unix_seconds, NULL);
     bool probe_started = lisp_runtime_selftest_start((uint64_t)(esp_timer_get_time() / 1000));
     while (probe_started && lisp_runtime_busy()) {
         lisp_runtime_step((uint64_t)(esp_timer_get_time() / 1000));
@@ -501,6 +524,11 @@ static void repl_task(void *argument)
     lisp_app_url_backend_t url_backend;
     if (!lisp_app_url_service_start(&url_backend) || !lisp_runtime_load_attach(&url_backend))
         ESP_LOGE(TAG, "URL loader unavailable; keeping the terminal REPL, no startup retry");
+#endif
+#if CONFIG_LISP_HTTP_ENABLE
+    lisp_http_backend_t http_backend;
+    if (!lisp_http_service_start(&http_backend) || !lisp_runtime_http_attach(&http_backend))
+        ESP_LOGE(TAG, "HTTP data API unavailable; keeping the REPL, no startup retry");
 #endif
     char banner[REPL_BOOT_INFO_CAPACITY];
     bool wifi = false;

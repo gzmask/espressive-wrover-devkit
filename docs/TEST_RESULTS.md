@@ -2,6 +2,19 @@
 
 硬件初检：2026-11-07 01:14 UTC。状态采用PASS / FAIL / NOT TESTED；历史未实现/旧端口只属于对应版本，不能当作当前限制或新写入许可。
 
+## Lisp 数据 API：离线实现，尚未部署
+
+起始源码 `a17b5d9f6fccfcffff7d49cc101f95d2c93d8534` 经 Git preflight 验证与 origin/main 一致。API 实现阶段只做源码/主机测试/开发构建；没有访问开发板、实卡或真实天气 API，没有固件冻结或写入。源码提交与推送不扩大设备操作范围。板上最后 0.5.12 记录不变。
+
+- **PASS（两主机模型）** — 默认 64 位、额外 word32 低地址模型各 **228 项 CTest**；新增 3 个纯 HTTP/JSON/时钟测试、10 个真实 LispBM 数据接口用例、1 个新初始化故障阶段。HTTP 8KiB/超限/声明长度/完整性/非2xx/压缩/取消/期限、槽位迟到结果/不循环 ID；JSON 严格语法、UTF-8/Unicode/数字/深度/节点/字符串限额及 10,000 次固定种子输入；原 owner 中复制和 JSON 转换、分配失败前不派发 GET、结果 OOM 后仍可重新 poll、应用期间正常与网络错误/退出/取消/复位、64 位毫秒、字符串有限遍历和注册容量通过。人为构造的 Open-Meteo 单日 fixture 可解析并提取当前温度/小时降雨概率，不是真实 API 响应。
+- **PASS（回归）** — 28 项 Python、4 个历史 uploader mock；主帮助及新增 :help-data 的 LCD 19 行/行宽/TCP 容量检查、真实 socketpair + LispBM 帮助与格式化/禁用 HTTP 错误结果通过。全部自有变更 C/H clang-format、git diff --check，以及四个新纯逻辑/运行时文件 Clang 静态分析无诊断。
+- **PASS（五配置开发构建）** — full HTTP+URL+TCP+SD+DMA/perf、只关闭新 HTTP、HTTP 启用/URL 关闭、无 Wi-Fi UART、根功能关闭五个独立 ESP-IDF 构建通过。HTTP 默认关闭，关闭构建的 HTTP archive 无 worker/service-start 符号。开发版本显式 `0.6.0-lisp-data-*-dev`，非冻结候选；full 镜像 0x135bd0 字节/分区余 54%。没有更新分区表/引导/安全配置。
+- **PASS（离线资源检查）** — HTTP 独立正文 8193 字节 PSRAM、worker 栈配置 8192 字节；JSON workspace 在原 runtime PSRAM 内，扩展表 48/注册 33。新增单函数栈帧 768 字节编译门与 .su 报告通过：HTTP worker 80、open_url 192、JSON 递归解析器每层 64、数字解析 112、数字格式化 128 字节；这些不是 SDK 完整调用链峰值或目标 low-water 证据。JSON 根深度 0/上限 12。
+- **已知限制保留** — 上游 LispBM 主机 UBSan 对齐诊断与 word32/pointer64 转换警告仍可见，不称 sanitizer-clean；未改上游 VM 或压掉该类警告。新 model 测试沿用原有“转换警告不提升为错误”的特例，实际目标编译仍严格告警。
+- **NOT TESTED（设备/互联网）** — DNS/TLS/真实 SNTP、真实 Open-Meteo 响应/时区字段/限流、目标 TLS/内部堆/PSRAM 峰值、worker 实际栈水位、FreeRTOS 并发/掉线/迟到/取消故障、长期半小时刷新及 LCD 页面均未验收。当前没有天气页面、开机自动应用或持久缓存；新固件仍须新准确 hash/范围批准及保护流程。
+
+接口与错误/所有权契约见 [LISP_DATA_APIS.md](LISP_DATA_APIS.md)。私有主机日志 `.local/lisp-api-gap-dev1/`；模型结果不是设备或联网证据。
+
 ## 最新demo SD加载和短运行/q退出闭环：三份通过
 
 - **PASS（实卡源码）** — 一个新TCP会话唯一mount、DEMO.LSP658/TINY2D.LSP1096/TINYGL.LSP2438各一次app-load-sd全loaded/descriptor3；动画phase0、TinyGL表32/顶点8/边12，实传字节与各源大小一致、fat/close/error0、quarantine0、worker trace栈余量3860字节。唯一unmount后定义和会话42保留，SD unmounted/LCD off。无app-run/普通SD读写/UART/复位/Flash/security/重试重连。新helper三源/字节/定义/pending/失败第二不第三/错descriptor/EOF/卡-LCD门模型、lint/格式通过。实际证据demo-acceptance1/sd-demo-loads1/summary.json。

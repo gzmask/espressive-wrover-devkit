@@ -1,4 +1,5 @@
 #include "lisp_app_runtime.h"
+#include "lisp_data_runtime.h"
 #ifdef ESP_PLATFORM
 #include "sdkconfig.h"
 #endif
@@ -98,6 +99,7 @@ lisp_app_command_t lisp_runtime_app_control(const char *source, size_t length)
 }
 static void begin_restore(void)
 {
+    lisp_data_runtime_app_stop();
 #if defined(CONFIG_LISP_PERF_TRACE) && CONFIG_LISP_PERF_TRACE
     callback_timing.active = false;
     backpressure_timing.active = false;

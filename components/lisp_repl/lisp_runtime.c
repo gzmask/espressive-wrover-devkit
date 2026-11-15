@@ -1,5 +1,6 @@
 #include "lisp_runtime.h"
 #include "lisp_app_runtime.h"
+#include "lisp_data_runtime.h"
 #include "lisp_lcd_runtime.h"
 #if defined(CONFIG_BOARD_SDCARD_ENABLE) && CONFIG_BOARD_SDCARD_ENABLE
 #include "lisp_sd_runtime.h"
@@ -16,7 +17,7 @@ enum {
     HEAP_CELLS = 8192,
     MEMORY_BLOCKS = 1024,
     IMAGE_WORDS = 8192,
-    EXTENSIONS = 24,
+    EXTENSIONS = 48,
     RESULT_CAPACITY = 512,
     STEP_BATCH = 64,
     EVAL_TIMEOUT_MS = 5000,
@@ -29,6 +30,7 @@ typedef struct {
     uint32_t image[IMAGE_WORDS];
     char source[REPL_SOURCE_CAPACITY];
     char loaded_source[LISP_APP_URL_SOURCE_CAPACITY];
+    lisp_data_workspace_t data;
     lbm_string_channel_state_t reader_state;
     lbm_char_channel_t reader;
 } runtime_storage_t;
@@ -136,6 +138,7 @@ bool lisp_runtime_reset(void)
         return false;
     lisp_app_runtime_reset();
     lisp_load_runtime_reset();
+    lisp_data_runtime_reset();
     active = false;
     initialized = false;
     selftest_running = false;
@@ -187,6 +190,9 @@ bool lisp_runtime_reset(void)
     if (!lisp_sd_runtime_register())
         return false;
 #endif
+    init_stage = "data-extensions";
+    if (!lisp_data_runtime_register(&storage->data))
+        return false;
     init_stage = "ready";
     initialized = true;
     return true;
@@ -214,6 +220,7 @@ static bool submit(const char *source, size_t length, uint64_t now_ms, char *buf
     memcpy(buffer, source, length);
     buffer[length] = 0;
     wrover_lisp_timestamp_us = (uint32_t)(now_ms * 1000);
+    lisp_data_runtime_step(now_ms);
     lbm_create_string_char_channel(&storage->reader_state, &storage->reader, buffer);
     output_remaining = 8192;
     root_id = lbm_load_and_eval_program(&storage->reader, NULL);
@@ -244,6 +251,7 @@ static void has_context(eval_context_t *context, void *found, void *unused)
 }
 void lisp_runtime_step(uint64_t now_ms)
 {
+    lisp_data_runtime_step(now_ms);
     if (!initialized || !active) {
         if (initialized)
             lisp_load_runtime_step(now_ms);

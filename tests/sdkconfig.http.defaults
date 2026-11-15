@@ -1,0 +1,2 @@
+# Explicit offline development profile. Not a frozen or approved firmware.
+CONFIG_LISP_HTTP_ENABLE=y

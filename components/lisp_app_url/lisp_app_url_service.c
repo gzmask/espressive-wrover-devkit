@@ -11,16 +11,15 @@
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
-#include "esp_netif_sntp.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "lisp_clock.h"
 #include "wifi_service.h"
 #include <stdatomic.h>
 #include <string.h>
 #include <strings.h>
-#include <time.h>
 
 static lisp_app_url_slot_t slot;
 static SemaphoreHandle_t gate;
@@ -50,26 +49,6 @@ static unsigned remaining(void)
         return 0;
     uint64_t left = deadline - now;
     return left < LISP_APP_URL_IO_TIMEOUT_MS ? (unsigned)left : LISP_APP_URL_IO_TIMEOUT_MS;
-}
-static bool clock_ready(void)
-{
-    /* UTC validity is checked by mbedTLS. SNTP is request-triggered, not a
-     * persistent background service, and is NOT an authenticated time source. */
-    if (time(NULL) >= (time_t)1735689600) /* 2025-01-01 */
-        return true;
-    esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
-    if (esp_netif_sntp_init(&config) != ESP_OK)
-        return false;
-    bool synced = false;
-    uint64_t until = now_ms(NULL) + 10000;
-    while (remaining() && now_ms(NULL) < until) {
-        if (esp_netif_sntp_sync_wait(pdMS_TO_TICKS(100)) == ESP_OK) {
-            synced = true;
-            break;
-        }
-    }
-    esp_netif_sntp_deinit(); /* Always stop: no ongoing periodic synchronization. */
-    return synced && time(NULL) >= (time_t)1735689600;
 }
 static esp_err_t headers(esp_http_client_event_t *event)
 {
@@ -179,7 +158,7 @@ static void worker_task(void *argument)
         size_t length = 0;
         /* Request URL/buffer cannot change until this worker finishes, even if
          * owner cancels or resets. Metadata mutex is NEVER held during IO. */
-        bool success = remaining() && clock_ready() &&
+        bool success = remaining() && lisp_clock_service_ensure(deadline, cancelled, NULL) &&
                        lisp_app_url_download(&io, slot.url, slot.source, slot.capacity, &length, deadline);
         (void)xSemaphoreTake(gate, portMAX_DELAY);
         lisp_app_url_slot_finish(&slot, success, length);

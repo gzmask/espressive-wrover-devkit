@@ -33,6 +33,7 @@ static void check(bool app, bool url, bool tcp, bool sd)
     const char *text = reply.text;
     assert(!reply.truncated);
     assert(strstr(text, ":help") && strstr(text, ":clear") && strstr(text, ":reset"));
+    assert(strstr(text, ":help-data"));
     assert(strstr(text, "(lcd-off)") && strstr(text, "(lcd-on)") && strstr(text, "(lcd-status)"));
     assert((strstr(text, ":help-sd") != NULL) == sd);
     assert((strstr(text, "(sd-mount)") != NULL) == sd);
@@ -106,6 +107,19 @@ int main(void)
     repl_help_write(NULL, NULL, true, true, true, true);
     check_lcd();
     check_sd();
+    for (unsigned http = 0; http < 2; http++) {
+        repl_remote_reply_t reply;
+        repl_remote_reply_init(&reply);
+        repl_help_data_write(collect, &reply, http != 0);
+        repl_remote_reply_finish(&reply);
+        assert(!reply.truncated);
+        assert(strstr(reply.text, "http-get") && strstr(reply.text, "http-release"));
+        assert(strstr(reply.text, "json-parse") && strstr(reply.text, "json-missing"));
+        assert(strstr(reply.text, "monotonic-ms") && strstr(reply.text, "str-from-n"));
+        assert(strstr(reply.text, http ? "HTTP enabled" : "HTTP unavailable"));
+        check_lines(reply.text);
+    }
+    repl_help_data_write(NULL, NULL, false);
     puts("PASS");
     return 0;
 }
