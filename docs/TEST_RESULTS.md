@@ -2,6 +2,16 @@
 
 硬件初检：2026-11-07 01:14 UTC。状态采用PASS / FAIL / NOT TESTED；历史未实现/旧端口只属于对应版本，不能当作当前限制或新写入许可。
 
+## Open-Meteo 天气应用：离线实现，尚未部署
+
+用户在 dirty-worktree 预检阻断后明确同意以当前本地工作树（HEAD `a17b5d9` + 上一轮未提交 API）继续；不是新的 clean/upstream-verified 基线。保留已有 API，新增 `examples/lisp/weather.lisp`、独立主机测试和合成 fixture，未改固件实现。实现阶段没有真实天气请求、设备/卡访问、复位/刷机或冻结；源码整理提交与设备部署分开。板上仍为既有0.5.12记录，不具备新 API。
+
+- **PASS（两主机模型）** — 默认及 word32 各 **253 CTest**，新增25项天气用例：实际源码 URL→RAM 加载不运行/不取天气、无配置/无效配置、摄氏与华氏完整画布逐像素、负温/数值类型/舍入/日历、HTTP 异步更新/失败不退出/旧数据保留、13类 schema/日期/单位拒绝、nullable 字段、30分钟调度与60秒手动节流、35秒取消/迟到/busy隔离、60分钟老化/午夜/时钟回拨与丢失、UTC整小时/半小时偏移、8次启停、32次半小时模拟刷新含跨日、只统计当前时间之后的降雨概率。仅使用合成JSON（1014字节）和假网络后端；不是互联网、目标 ABI 或 FreeRTOS 证据。
+- **PASS（源码/回归）** — weather.lisp 为15718字节ASCII、低于32KiB loader上限，两个真实 LispBM 主机模型可完整加载/执行；28 Python/4历史 uploader mock、C格式及diff检查通过。C/F私有BMP预览由模拟RGB565画布生成，不是设备截图或LCD目视。full ESP-IDF开发构建复核通过（同一0x135bd0字节镜像规模），应用源码不编入固件；原默认/禁用API配置与固件实现未改。上游旧 UBSan 对齐诊断保留，不称 sanitizer-clean。
+- **NOT TESTED / 限制** — 真实Open-Meteo返回/限流/数据精度、DNS/TLS/SNTP、硬件堆/栈/长期刷新和LCD独立目视均未验收。应用使用API请求时解析的固定offset时间轴，不宣称完整IANA/DST转换；没有持久缓存/城市搜索/开机自动运行。没有新固件写权限。
+
+操作与缓存/时间语义见 [WEATHER_APP.md](WEATHER_APP.md)，私有证据 `.local/weather-app-dev1/`。首次测试在源码文件不存在时RED；摄氏/华氏独立像素参考又发现跨数值类型eq及单精度换算舍入问题，修正Lisp逻辑后GREEN；后续午夜/时钟标签也先RED后GREEN。均为纯主机阶段，无设备访问或重试。
+
 ## Lisp 数据 API：离线实现，尚未部署
 
 起始源码 `a17b5d9f6fccfcffff7d49cc101f95d2c93d8534` 经 Git preflight 验证与 origin/main 一致。API 实现阶段只做源码/主机测试/开发构建；没有访问开发板、实卡或真实天气 API，没有固件冻结或写入。源码提交与推送不扩大设备操作范围。板上最后 0.5.12 记录不变。

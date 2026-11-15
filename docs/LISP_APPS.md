@@ -1,5 +1,9 @@
 # LispBM 前台应用层（当前0.5.12 factory，物理LCD FPS未测）
 
+## 新源码：Open-Meteo 天气应用（离线，未部署）
+
+[`examples/lisp/weather.lisp`](../examples/lisp/weather.lisp) 使用尚未部署的 HTTP/JSON/时间/字符串 API；无默认位置，显式 `weather-config` 后 `app-run weather` 才取天气。大号温度/三时段/带伞提示、半小时更新、失败/过期/跨日保护及q退出已在两主机模型验证；25个新增用例、总计各253 CTest通过，只有合成数据和模拟画布。当前板上0.5.12缺少这些API，不能直接加载运行此应用。配置、时间/DST限制及未测边界见 [WEATHER_APP.md](WEATHER_APP.md)。本轮没有设备操作或新写入许可，以下原demo实卡记录不变。
+
 ## 当前：三个原demo的SD加载/短运行/q退出通过
 
 0.5.12提供`app-load-sd`，与URL loader共享最多32KiB源码和加载控制状态。`DEMO.LSP`（658字节）、`TINY2D.LSP`（1096字节）、`TINYGL.LSP`（2438字节）已实卡加载并检查定义；成功卸载、用户取卡并恢复LCD后，各显式运行约5秒、一次`:key q`退出并恢复终端。定义保留RAM，最后无应用运行、LCD on/SD unmounted、卡在板外、TCP释放。不是物理LCD目视/FPS、32KiB内存压力或长期稳定性证据。

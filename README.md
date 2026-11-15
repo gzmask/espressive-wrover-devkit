@@ -2,6 +2,10 @@
 
 ESP-WROVER-KIT v4.1 / 经典 ESP32 的 ESP-IDF 固件：FreeRTOS、PSRAM、ILI9341、自动 Wi-Fi、USB固件更新与 RAM-only LispBM REPL。
 
+## 新源码：Open-Meteo 天气应用（离线，未部署）
+
+[`examples/lisp/weather.lisp`](examples/lisp/weather.lisp) 使用新数据 API 显示大号温度、体感/高低温、07/12/18 点预报及降雨提示；无默认位置，配置后显式运行才发请求。半小时更新、失败/跨日/时钟异常标 STALE，q 退出，r 有节流。两主机模型各253项通过，摄氏/华氏画布与参考逐像素一致；只有合成数据，没有真实天气或设备操作。当前板上0.5.12缺少新 API，不能直接加载运行。见 [天气应用说明](docs/WEATHER_APP.md)。
+
 ## 新源码：Lisp 通用数据 API（离线，未部署）
 
 新增异步 HTTPS GET、有界 JSON、单调/UTC 时间查询及字符串格式化，供后续 Open-Meteo 天气应用使用；HTTP 正文不执行，应用运行中可轮询，取消/复位不复用迟到 worker 缓冲。HTTP 默认关闭，需 `tests/sdkconfig.http.defaults`；`:help-data` 提供说明。当前仅离线开发，无真实天气请求或设备操作，板上仍为既有 0.5.12。接口与限制见 [Lisp 数据 API](docs/LISP_DATA_APIS.md)。
